@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"bytes"
 	"io"
 
 	"github.com/cjccjj/mdflow/pkg/markdown/parser"
@@ -26,12 +27,24 @@ func NewPipeline(w io.Writer, theme render.Theme) *Pipeline {
 }
 
 func (p *Pipeline) Write(data []byte) (int, error) {
-	tokens := tokenizer.Tokenize(data)
-	events := p.parser.Parse(tokens)
-	for _, e := range events {
-		p.writer.Handle(e)
+	n := len(data)
+	for len(data) > 0 {
+		idx := bytes.IndexByte(data, '\n')
+		var chunk []byte
+		if idx >= 0 {
+			chunk = data[:idx+1]
+			data = data[idx+1:]
+		} else {
+			chunk = data
+			data = nil
+		}
+		tokens := tokenizer.Tokenize(chunk)
+		events := p.parser.Parse(tokens)
+		for _, e := range events {
+			p.writer.Handle(e)
+		}
 	}
-	return len(data), nil
+	return n, nil
 }
 
 func (p *Pipeline) Flush() error {
