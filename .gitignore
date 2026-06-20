@@ -1,0 +1,26 @@
+# Binaries
+/mdflow
+/mdflow-linux-*
+/mdflow-upx
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Go workspace
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Dev docs
+dev_docs/
+
+# User test files
+test*.md
