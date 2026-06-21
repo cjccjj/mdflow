@@ -11,11 +11,13 @@ func (p *Parser) processBold() []Event {
 	for len(p.buf) > 0 {
 		if p.lineStart && p.isBlockLevel(p.buf[0].Type) {
 			events = append(events, Event{Type: BoldEndEvent})
+			p.boldOpener = 0
 			p.state = NormalState
 			return events
 		}
-		if p.hasConsecutive(tokenizer.StarToken, 2) {
+		if p.hasConsecutive(p.boldOpener, 2) {
 			p.consume(2)
+			p.boldOpener = 0
 			p.state = NormalState
 			events = append(events, Event{Type: BoldEndEvent})
 			return events
@@ -38,17 +40,20 @@ func (p *Parser) processItalic() []Event {
 		tok := p.buf[0]
 		if p.lineStart && p.isBlockLevel(tok.Type) {
 			events = append(events, Event{Type: ItalicEndEvent})
+			p.italicOpener = 0
 			p.state = NormalState
 			return events
 		}
-		if tok.Type == tokenizer.StarToken {
+		if tok.Type == p.italicOpener {
 			p.consume(1)
+			p.italicOpener = 0
 			p.state = NormalState
 			events = append(events, Event{Type: ItalicEndEvent})
 			return events
 		}
 		if tok.Type == tokenizer.NewlineToken {
 			p.consume(1)
+			p.italicOpener = 0
 			p.state = NormalState
 			p.lineStart = true
 			events = append(events, Event{Type: ItalicEndEvent})

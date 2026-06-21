@@ -86,6 +86,7 @@ func (p *Parser) tryBulletOrBold() []Event {
 	if p.hasConsecutive(tokenizer.StarToken, 2) {
 		p.consume(2)
 		p.state = BoldState
+		p.boldOpener = tokenizer.StarToken
 		p.lineStart = false
 		return []Event{{Type: BoldStartEvent}}
 	}
@@ -93,6 +94,7 @@ func (p *Parser) tryBulletOrBold() []Event {
 		!strings.HasPrefix(p.buf[1].Value, " ") && p.buf[2].Type == tokenizer.StarToken {
 		p.consume(1)
 		p.state = ItalicState
+		p.italicOpener = tokenizer.StarToken
 		p.lineStart = false
 		return []Event{{Type: ItalicStartEvent}}
 	}

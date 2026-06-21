@@ -14,6 +14,8 @@ type Parser struct {
 	codeBlockFirst  bool
 	tableHeaderBuf  []string
 	tableColWidths  []int
+	italicOpener    tokenizer.TokenType
+	boldOpener      tokenizer.TokenType
 }
 
 func New() *Parser {
@@ -30,6 +32,8 @@ func (p *Parser) Reset() {
 	p.codeBlockFirst = false
 	p.tableHeaderBuf = nil
 	p.tableColWidths = nil
+	p.italicOpener = 0
+	p.boldOpener = 0
 }
 
 func (p *Parser) Parse(tokens []tokenizer.Token) (events []Event) {
@@ -156,6 +160,7 @@ func (p *Parser) processNormal() []Event {
 	if first.Type == tokenizer.StarToken && p.hasConsecutive(tokenizer.StarToken, 2) {
 		p.consume(2)
 		p.state = BoldState
+		p.boldOpener = tokenizer.StarToken
 		return []Event{{Type: BoldStartEvent}}
 	}
 
@@ -196,18 +201,21 @@ func (p *Parser) processNormal() []Event {
 	if first.Type == tokenizer.StarToken && !p.lineStart {
 		p.consume(1)
 		p.state = ItalicState
+		p.italicOpener = tokenizer.StarToken
 		return []Event{{Type: ItalicStartEvent}}
 	}
 
 	if first.Type == tokenizer.UnderscoreToken && p.hasConsecutive(tokenizer.UnderscoreToken, 2) && !p.lineStart {
 		p.consume(2)
 		p.state = BoldState
+		p.boldOpener = tokenizer.UnderscoreToken
 		return []Event{{Type: BoldStartEvent}}
 	}
 
 	if first.Type == tokenizer.UnderscoreToken && !p.lineStart {
 		p.consume(1)
 		p.state = ItalicState
+		p.italicOpener = tokenizer.UnderscoreToken
 		return []Event{{Type: ItalicStartEvent}}
 	}
 
@@ -295,6 +303,9 @@ func (p *Parser) bufferHasPattern() bool {
 		return true
 	}
 	if p.buf[0].Type == tokenizer.TildeToken {
+		return true
+	}
+	if p.buf[0].Type == tokenizer.UnderscoreToken {
 		return true
 	}
 	return false
