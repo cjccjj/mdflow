@@ -41,7 +41,9 @@ func (p *Pipeline) Write(data []byte) (int, error) {
 		tokens := tokenizer.Tokenize(chunk)
 		events := p.parser.Parse(tokens)
 		for _, e := range events {
-			p.writer.Handle(e)
+			if err := p.writer.Handle(e); err != nil {
+				return n, err
+			}
 		}
 	}
 	return n, nil
@@ -50,19 +52,26 @@ func (p *Pipeline) Write(data []byte) (int, error) {
 func (p *Pipeline) Flush() error {
 	events := p.parser.Flush()
 	for _, e := range events {
-		p.writer.Handle(e)
+		if err := p.writer.Handle(e); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (p *Pipeline) Reset() {
+	p.writer.ResetStyles()
 	p.parser.Reset()
 }
 
 func (p *Pipeline) Close() error {
-	p.Flush()
+	if err := p.Flush(); err != nil {
+		return err
+	}
 	for _, e := range p.parser.CloseStates() {
-		p.writer.Handle(e)
+		if err := p.writer.Handle(e); err != nil {
+			return err
+		}
 	}
 	p.Reset()
 	return nil

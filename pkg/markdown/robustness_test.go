@@ -192,29 +192,33 @@ func TestRobustness_MixedSupportedAndUnsupported(t *testing.T) {
 
 func TestRobustness_Empty(t *testing.T) {
 	out := renderOutput("")
-	if out != "" {
-		t.Errorf("expected empty output, got %q", out)
+	expected := "\033[0m"
+	if out != expected {
+		t.Errorf("expected %q, got %q", expected, out)
 	}
 }
 
 func TestRobustness_LoneHash(t *testing.T) {
 	out := renderOutput("#")
-	if out != "#" {
-		t.Errorf("expected raw #, got %q", out)
+	expected := "#\033[0m"
+	if out != expected {
+		t.Errorf("expected %q, got %q", expected, out)
 	}
 }
 
 func TestRobustness_LoneStar(t *testing.T) {
 	out := renderOutput("*")
-	if out != "*" {
-		t.Errorf("expected raw *, got %q", out)
+	expected := "*\033[0m"
+	if out != expected {
+		t.Errorf("expected %q, got %q", expected, out)
 	}
 }
 
 func TestRobustness_LoneDash(t *testing.T) {
 	out := renderOutput("-")
-	if out != "-" {
-		t.Errorf("expected raw -, got %q", out)
+	expected := "-\033[0m"
+	if out != expected {
+		t.Errorf("expected %q, got %q", expected, out)
 	}
 }
 

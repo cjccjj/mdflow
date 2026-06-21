@@ -37,7 +37,9 @@ func RenderInline(text string, theme Theme) string {
 	events := p.Parse(tokens)
 	events = append(events, p.CloseStates()...)
 	for _, e := range events {
-		w.Handle(e)
+		if err := w.Handle(e); err != nil {
+			return buf.String()
+		}
 	}
 	return buf.String()
 }

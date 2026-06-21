@@ -1,22 +1,20 @@
 package render
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/cjccjj/mdflow/pkg/markdown/parser"
 )
 
 type Writer struct {
-	aw          *AnsiWriter
-	theme       Theme
-	live        bool
-	tableActive bool
-	inBlockquote bool
-	tableHeader []string
-	tableRows   [][]string
-	tableWidths []int
-	tableLines  int
+	aw                 *AnsiWriter
+	theme              Theme
+	live               bool
+	tableActive        bool
+	inBlockquote       bool
+	activeHeaderSuffix string
+	tableHeader        []string
+	tableRows          [][]string
+	tableWidths        []int
+	tableLines         int
 }
 
 func NewWriter(aw *AnsiWriter, theme Theme) *Writer {
@@ -27,23 +25,30 @@ func (w *Writer) SetLive(v bool) {
 	w.live = v
 }
 
-func (w *Writer) Handle(e parser.Event) {
+func (w *Writer) Handle(e parser.Event) error {
 	switch e.Type {
 	case parser.TextEvent:
-		w.aw.WriteString(e.Value)
+		_, err := w.aw.WriteString(e.Value)
+		return err
 
 	case parser.NewlineEvent:
-		w.aw.WriteString("\n")
-		if w.inBlockquote {
-			w.aw.WriteStyled("│ ", w.theme.Blockquote)
+		if _, err := w.aw.WriteString("\n"); err != nil {
+			return err
 		}
+		if w.inBlockquote {
+			_, err := w.aw.WriteStyled("│ ", w.theme.Blockquote)
+			return err
+		}
+		return nil
 
 	case parser.BlockquoteStartEvent:
 		w.inBlockquote = true
-		w.aw.WriteStyled("│ ", w.theme.Blockquote)
+		_, err := w.aw.WriteStyled("│ ", w.theme.Blockquote)
+		return err
 
 	case parser.BlockquoteEndEvent:
 		w.inBlockquote = false
+		return nil
 
 	case parser.HeaderStartEvent:
 		style := w.theme.H1
@@ -65,244 +70,101 @@ func (w *Writer) Handle(e parser.Event) {
 			style = w.theme.H6
 			prefix = "###### "
 		}
-		w.aw.WriteString(style.Prefix + prefix)
+		w.activeHeaderSuffix = style.Suffix
+		_, err := w.aw.WriteString(style.Prefix + prefix)
+		return err
 
 	case parser.HeaderEndEvent:
-		w.aw.WriteString(w.theme.H1.Suffix)
+		if w.activeHeaderSuffix != "" {
+			_, err := w.aw.WriteString(w.activeHeaderSuffix)
+			w.activeHeaderSuffix = ""
+			return err
+		}
+		_, err := w.aw.WriteString(w.theme.H1.Suffix)
+		return err
 
 	case parser.BoldStartEvent:
-		w.aw.WriteString(w.theme.Bold.Prefix)
+		_, err := w.aw.WriteString(w.theme.Bold.Prefix)
+		return err
 
 	case parser.BoldEndEvent:
-		w.aw.WriteString(w.theme.Bold.Suffix)
+		_, err := w.aw.WriteString(w.theme.Bold.Suffix)
+		return err
 
 	case parser.ItalicStartEvent:
-		w.aw.WriteString(w.theme.Italic.Prefix)
+		_, err := w.aw.WriteString(w.theme.Italic.Prefix)
+		return err
 
 	case parser.ItalicEndEvent:
-		w.aw.WriteString(w.theme.Italic.Suffix)
+		_, err := w.aw.WriteString(w.theme.Italic.Suffix)
+		return err
 
 	case parser.StrikethroughStartEvent:
-		w.aw.WriteString(w.theme.Strikethrough.Prefix)
+		_, err := w.aw.WriteString(w.theme.Strikethrough.Prefix)
+		return err
 
 	case parser.StrikethroughEndEvent:
-		w.aw.WriteString(w.theme.Strikethrough.Suffix)
+		_, err := w.aw.WriteString(w.theme.Strikethrough.Suffix)
+		return err
 
 	case parser.InlineCodeStartEvent:
-		w.aw.WriteString(w.theme.InlineCode.Prefix)
+		_, err := w.aw.WriteString(w.theme.InlineCode.Prefix)
+		return err
 
 	case parser.InlineCodeEndEvent:
-		w.aw.WriteString(w.theme.InlineCode.Suffix)
+		_, err := w.aw.WriteString(w.theme.InlineCode.Suffix)
+		return err
 
 	case parser.CodeBlockStartEvent:
-		w.aw.WriteString(w.theme.CodeBlock.Prefix)
+		_, err := w.aw.WriteString(w.theme.CodeBlock.Prefix)
+		return err
 
 	case parser.CodeBlockEndEvent:
-		w.aw.WriteString(w.theme.CodeBlock.Suffix)
+		_, err := w.aw.WriteString(w.theme.CodeBlock.Suffix)
+		return err
 
 	case parser.CodeBlockLangEvent:
-		w.aw.WriteString(w.theme.CodeBlockLang.Prefix + e.Value + w.theme.CodeBlockLang.Suffix)
+		_, err := w.aw.WriteString(w.theme.CodeBlockLang.Prefix + e.Value + w.theme.CodeBlockLang.Suffix)
+		return err
 
 	case parser.HorizontalRuleEvent:
-		w.aw.WriteString(w.theme.HorizontalRule.Prefix)
-		w.aw.WriteString("────────────────")
-		w.aw.WriteString(w.theme.HorizontalRule.Suffix)
-		w.aw.WriteString("\n")
+		if _, err := w.aw.WriteString(w.theme.HorizontalRule.Prefix); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString("────────────────"); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString(w.theme.HorizontalRule.Suffix); err != nil {
+			return err
+		}
+		_, err := w.aw.WriteString("\n")
+		return err
 
 	case parser.BulletItemEvent:
 		if e.Value != "" {
-			w.aw.WriteString(e.Value)
-		} else {
-			w.aw.WriteString("• ")
+			_, err := w.aw.WriteString(e.Value)
+			return err
 		}
+		_, err := w.aw.WriteString("• ")
+		return err
 
 	case parser.TableStartEvent:
-		w.handleTableStart(e)
+		return w.handleTableStart(e)
 
 	case parser.TableRowEvent:
-		w.handleTableRow(e)
+		return w.handleTableRow(e)
 
 	case parser.TableEndEvent:
-		w.handleTableEnd()
+		return w.handleTableEnd()
+
+	default:
+		return nil
 	}
 }
 
-func (w *Writer) handleTableStart(e parser.Event) {
-	headerCells := strings.Split(e.Value, "\x00")
-	sepWidths, _ := e.Extra.([]int)
-	if sepWidths == nil {
-		return
-	}
-
-	widths := make([]int, len(sepWidths))
-	copy(widths, sepWidths)
-	for i, c := range headerCells {
-		rendered := RenderInline(c, w.theme)
-		needed := VisibleLen(rendered) + 2
-		if needed > widths[i] {
-			widths[i] = needed
-		}
-	}
-	for i := range widths {
-		if widths[i] < 3 {
-			widths[i] = 3
-		}
-	}
-
-	w.tableActive = true
-	w.tableHeader = headerCells
-	w.tableRows = nil
-	w.tableWidths = widths
-
-	if w.live {
-		w.drawBorder(widths, "┌", "┬", "┐", "─")
-		w.aw.WriteString("\n")
-		w.drawRow(widths, headerCells, w.theme.TableHeader)
-		w.aw.WriteString("\n")
-		w.drawBorder(widths, "├", "┼", "┤", "─")
-		w.aw.WriteString("\n")
-		w.tableLines = 3
-	}
-}
-
-func (w *Writer) handleTableRow(e parser.Event) {
-	cells := strings.Split(e.Value, "\x00")
-	w.tableRows = append(w.tableRows, cells)
-
-	newWidths := make([]int, len(w.tableWidths))
-	copy(newWidths, w.tableWidths)
-	for i, c := range cells {
-		if i >= len(newWidths) {
-			break
-		}
-		rendered := RenderInline(c, w.theme)
-		needed := VisibleLen(rendered) + 2
-		if needed > newWidths[i] {
-			newWidths[i] = needed
-		}
-	}
-
-	if !w.live {
-		w.tableWidths = newWidths
-		return
-	}
-
-	if widthsEqual(newWidths, w.tableWidths) {
-		w.drawRow(w.tableWidths, cells, w.theme.TableCell)
-		w.aw.WriteString("\n")
-		w.tableLines++
-	} else {
-		w.tableWidths = newWidths
-		w.redrawTable()
-	}
-}
-
-func (w *Writer) handleTableEnd() {
-	if len(w.tableWidths) == 0 {
-		return
-	}
-	if !w.live {
-		w.drawBorder(w.tableWidths, "┌", "┬", "┐", "─")
-		w.aw.WriteString("\n")
-		w.drawRow(w.tableWidths, w.tableHeader, w.theme.TableHeader)
-		w.aw.WriteString("\n")
-		w.drawBorder(w.tableWidths, "├", "┼", "┤", "─")
-		w.aw.WriteString("\n")
-		for _, row := range w.tableRows {
-			w.drawRow(w.tableWidths, row, w.theme.TableCell)
-			w.aw.WriteString("\n")
-		}
-	}
-	w.drawBorder(w.tableWidths, "└", "┴", "┘", "─")
-	w.aw.WriteString("\n")
-	w.tableActive = false
-	w.tableHeader = nil
-	w.tableRows = nil
-	w.tableWidths = nil
-	w.tableLines = 0
-}
-
-func (w *Writer) redrawTable() {
-	if w.live && w.tableLines > 0 {
-		fmt.Fprintf(w.aw.w, "\033[%dA\r\033[J", w.tableLines)
-	}
-	w.drawBorder(w.tableWidths, "┌", "┬", "┐", "─")
-	w.aw.WriteString("\n")
-	w.drawRow(w.tableWidths, w.tableHeader, w.theme.TableHeader)
-	w.aw.WriteString("\n")
-	w.drawBorder(w.tableWidths, "├", "┼", "┤", "─")
-	w.aw.WriteString("\n")
-	for _, row := range w.tableRows {
-		w.drawRow(w.tableWidths, row, w.theme.TableCell)
-		w.aw.WriteString("\n")
-	}
-	w.tableLines = 3 + len(w.tableRows)
-}
-
-func (w *Writer) drawBorder(widths []int, left, mid, right, fill string) {
-	if len(widths) == 0 {
-		return
-	}
-	b := w.theme.TableBorder
-	w.aw.WriteString(b.Prefix)
-	w.aw.WriteString(left)
-	for i, width := range widths {
-		w.aw.WriteString(strings.Repeat(fill, width))
-		if i < len(widths)-1 {
-			w.aw.WriteString(mid)
-		}
-	}
-	w.aw.WriteString(right)
-	w.aw.WriteString(b.Suffix)
-}
-
-func (w *Writer) drawRow(widths []int, cells []string, cellStyle Style) {
-	if len(widths) == 0 {
-		return
-	}
-	b := w.theme.TableBorder
-
-	for i := range widths {
-		w.aw.WriteString(b.Prefix)
-		w.aw.WriteString("│")
-		w.aw.WriteString(b.Suffix)
-
-		cell := ""
-		if i < len(cells) {
-			cell = cells[i]
-		}
-		rendered := RenderInline(cell, w.theme)
-		contentWidth := widths[i] - 2
-		pad := contentWidth - VisibleLen(rendered)
-		if pad < 0 {
-			pad = 0
-		}
-
-		w.aw.WriteString(" ")
-		if cellStyle.Prefix != "" {
-			w.aw.WriteString(cellStyle.Prefix)
-		}
-		w.aw.WriteString(rendered)
-		w.aw.WriteString(spaces(pad))
-		if cellStyle.Suffix != "" {
-			w.aw.WriteString(cellStyle.Suffix)
-		}
-		w.aw.WriteString(" ")
-	}
-
-	w.aw.WriteString(b.Prefix)
-	w.aw.WriteString("│")
-	w.aw.WriteString(b.Suffix)
-}
-
-func widthsEqual(a, b []int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
+func (w *Writer) ResetStyles() error {
+	w.inBlockquote = false
+	w.activeHeaderSuffix = ""
+	_, err := w.aw.WriteString("\033[0m")
+	return err
 }

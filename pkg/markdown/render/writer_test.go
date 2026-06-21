@@ -12,9 +12,9 @@ func TestWriterBold(t *testing.T) {
 	aw := NewAnsiWriter(&buf)
 	w := NewWriter(aw, DefaultTheme)
 
-	w.Handle(parser.Event{Type: parser.BoldStartEvent})
-	w.Handle(parser.Event{Type: parser.TextEvent, Value: "hello"})
-	w.Handle(parser.Event{Type: parser.BoldEndEvent})
+	_ = w.Handle(parser.Event{Type: parser.BoldStartEvent})
+	_ = w.Handle(parser.Event{Type: parser.TextEvent, Value: "hello"})
+	_ = w.Handle(parser.Event{Type: parser.BoldEndEvent})
 
 	expected := "\033[1mhello\033[0m"
 	if buf.String() != expected {
@@ -27,11 +27,26 @@ func TestWriterHeader(t *testing.T) {
 	aw := NewAnsiWriter(&buf)
 	w := NewWriter(aw, DefaultTheme)
 
-	w.Handle(parser.Event{Type: parser.HeaderStartEvent, Value: "h1"})
-	w.Handle(parser.Event{Type: parser.TextEvent, Value: "Hello"})
-	w.Handle(parser.Event{Type: parser.HeaderEndEvent})
+	_ = w.Handle(parser.Event{Type: parser.HeaderStartEvent, Value: "h1"})
+	_ = w.Handle(parser.Event{Type: parser.TextEvent, Value: "Hello"})
+	_ = w.Handle(parser.Event{Type: parser.HeaderEndEvent})
 
 	expected := "\033[1;48;5;63;38;5;228mHello\033[0m"
+	if buf.String() != expected {
+		t.Errorf("expected %q, got %q", expected, buf.String())
+	}
+}
+
+func TestWriterHeaderH2(t *testing.T) {
+	var buf bytes.Buffer
+	aw := NewAnsiWriter(&buf)
+	w := NewWriter(aw, DefaultTheme)
+
+	_ = w.Handle(parser.Event{Type: parser.HeaderStartEvent, Value: "h2"})
+	_ = w.Handle(parser.Event{Type: parser.TextEvent, Value: "Hello"})
+	_ = w.Handle(parser.Event{Type: parser.HeaderEndEvent})
+
+	expected := "\033[1;34m## Hello\033[0m"
 	if buf.String() != expected {
 		t.Errorf("expected %q, got %q", expected, buf.String())
 	}
@@ -42,9 +57,9 @@ func TestWriterCodeBlock(t *testing.T) {
 	aw := NewAnsiWriter(&buf)
 	w := NewWriter(aw, DefaultTheme)
 
-	w.Handle(parser.Event{Type: parser.CodeBlockStartEvent})
-	w.Handle(parser.Event{Type: parser.TextEvent, Value: "code"})
-	w.Handle(parser.Event{Type: parser.CodeBlockEndEvent})
+	_ = w.Handle(parser.Event{Type: parser.CodeBlockStartEvent})
+	_ = w.Handle(parser.Event{Type: parser.TextEvent, Value: "code"})
+	_ = w.Handle(parser.Event{Type: parser.CodeBlockEndEvent})
 
 	expected := "\033[38;5;245mcode\033[0m"
 	if buf.String() != expected {
@@ -57,9 +72,9 @@ func TestWriterInlineCode(t *testing.T) {
 	aw := NewAnsiWriter(&buf)
 	w := NewWriter(aw, DefaultTheme)
 
-	w.Handle(parser.Event{Type: parser.InlineCodeStartEvent})
-	w.Handle(parser.Event{Type: parser.TextEvent, Value: "code"})
-	w.Handle(parser.Event{Type: parser.InlineCodeEndEvent})
+	_ = w.Handle(parser.Event{Type: parser.InlineCodeStartEvent})
+	_ = w.Handle(parser.Event{Type: parser.TextEvent, Value: "code"})
+	_ = w.Handle(parser.Event{Type: parser.InlineCodeEndEvent})
 
 	expected := "\033[38;5;215;48;5;236mcode\033[0m"
 	if buf.String() != expected {
@@ -72,9 +87,9 @@ func TestWriterBulletItem(t *testing.T) {
 	aw := NewAnsiWriter(&buf)
 	w := NewWriter(aw, DefaultTheme)
 
-	w.Handle(parser.Event{Type: parser.BulletItemEvent})
+	_ = w.Handle(parser.Event{Type: parser.BulletItemEvent})
 
-	expected := "• " 
+	expected := "• "
 	if buf.String() != expected {
 		t.Errorf("expected %q, got %q", expected, buf.String())
 	}
@@ -85,7 +100,7 @@ func TestWriterNewline(t *testing.T) {
 	aw := NewAnsiWriter(&buf)
 	w := NewWriter(aw, DefaultTheme)
 
-	w.Handle(parser.Event{Type: parser.NewlineEvent})
+	_ = w.Handle(parser.Event{Type: parser.NewlineEvent})
 
 	if buf.String() != "\n" {
 		t.Errorf("expected newline, got %q", buf.String())
@@ -97,9 +112,9 @@ func TestWriterItalic(t *testing.T) {
 	aw := NewAnsiWriter(&buf)
 	w := NewWriter(aw, DefaultTheme)
 
-	w.Handle(parser.Event{Type: parser.ItalicStartEvent})
-	w.Handle(parser.Event{Type: parser.TextEvent, Value: "slanted"})
-	w.Handle(parser.Event{Type: parser.ItalicEndEvent})
+	_ = w.Handle(parser.Event{Type: parser.ItalicStartEvent})
+	_ = w.Handle(parser.Event{Type: parser.TextEvent, Value: "slanted"})
+	_ = w.Handle(parser.Event{Type: parser.ItalicEndEvent})
 
 	expected := "\033[3mslanted\033[0m"
 	if buf.String() != expected {
@@ -112,9 +127,9 @@ func TestWriterStrikethrough(t *testing.T) {
 	aw := NewAnsiWriter(&buf)
 	w := NewWriter(aw, DefaultTheme)
 
-	w.Handle(parser.Event{Type: parser.StrikethroughStartEvent})
-	w.Handle(parser.Event{Type: parser.TextEvent, Value: "gone"})
-	w.Handle(parser.Event{Type: parser.StrikethroughEndEvent})
+	_ = w.Handle(parser.Event{Type: parser.StrikethroughStartEvent})
+	_ = w.Handle(parser.Event{Type: parser.TextEvent, Value: "gone"})
+	_ = w.Handle(parser.Event{Type: parser.StrikethroughEndEvent})
 
 	expected := "\033[9mgone\033[0m"
 	if buf.String() != expected {
@@ -127,7 +142,7 @@ func TestWriterHorizontalRule(t *testing.T) {
 	aw := NewAnsiWriter(&buf)
 	w := NewWriter(aw, DefaultTheme)
 
-	w.Handle(parser.Event{Type: parser.HorizontalRuleEvent})
+	_ = w.Handle(parser.Event{Type: parser.HorizontalRuleEvent})
 
 	expected := "\033[2m────────────────\033[0m\n"
 	if buf.String() != expected {
