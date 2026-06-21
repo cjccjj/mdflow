@@ -68,10 +68,13 @@ func (p *Parser) Flush() []Event {
 		out = append(out, p.flushLinkAsText()...)
 	}
 	if len(p.buf) > 0 {
+		p.eof = true
+		out = append(out, p.process()...)
 		for _, tok := range p.buf {
 			out = append(out, Event{Type: TextEvent, Value: tok.Value})
 		}
 		p.buf = nil
+		p.eof = false
 	}
 	return out
 }

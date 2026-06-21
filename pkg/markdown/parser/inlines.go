@@ -15,12 +15,16 @@ func (p *Parser) processBold() []Event {
 			p.state = NormalState
 			return events
 		}
-		if p.hasConsecutive(p.boldOpener, 2) {
+		matched, waiting := p.checkConsecutive(p.boldOpener, 2)
+		if matched {
 			p.consume(2)
 			p.boldOpener = 0
 			p.state = NormalState
 			events = append(events, Event{Type: BoldEndEvent})
 			return events
+		}
+		if waiting {
+			break
 		}
 		tok := p.buf[0]
 		p.consume(1)
@@ -75,11 +79,15 @@ func (p *Parser) processStrikethrough() []Event {
 			p.state = NormalState
 			return events
 		}
-		if p.hasConsecutive(tokenizer.TildeToken, 2) {
+		matched, waiting := p.checkConsecutive(tokenizer.TildeToken, 2)
+		if matched {
 			p.consume(2)
 			p.state = NormalState
 			events = append(events, Event{Type: StrikethroughEndEvent})
 			return events
+		}
+		if waiting {
+			break
 		}
 		tok := p.buf[0]
 		p.consume(1)
@@ -95,22 +103,28 @@ func (p *Parser) processInlineCode() []Event {
 	var events []Event
 	for len(p.buf) > 0 {
 		tok := p.buf[0]
-		if tok.Type == tokenizer.BacktickToken && p.hasConsecutive(tokenizer.BacktickToken, p.fenceLen) {
-			p.consume(p.fenceLen)
-			p.state = NormalState
-			p.fenceLen = 0
-			if len(events) > 0 {
-				first := events[0]
-				last := events[len(events)-1]
-				if first.Type == TextEvent && strings.HasPrefix(first.Value, " ") {
-					first.Value = strings.TrimPrefix(first.Value, " ")
+		if tok.Type == tokenizer.BacktickToken {
+			matched, waiting := p.checkConsecutive(tokenizer.BacktickToken, p.fenceLen)
+			if matched {
+				p.consume(p.fenceLen)
+				p.state = NormalState
+				p.fenceLen = 0
+				if len(events) > 0 {
+					first := events[0]
+					last := events[len(events)-1]
+					if first.Type == TextEvent && strings.HasPrefix(first.Value, " ") {
+						first.Value = strings.TrimPrefix(first.Value, " ")
+					}
+					if last.Type == TextEvent && strings.HasSuffix(last.Value, " ") {
+						last.Value = strings.TrimSuffix(last.Value, " ")
+					}
 				}
-				if last.Type == TextEvent && strings.HasSuffix(last.Value, " ") {
-					last.Value = strings.TrimSuffix(last.Value, " ")
-				}
+				events = append(events, Event{Type: InlineCodeEndEvent})
+				return events
 			}
-			events = append(events, Event{Type: InlineCodeEndEvent})
-			return events
+			if waiting {
+				break
+			}
 		}
 		if tok.Type == tokenizer.NewlineToken {
 			p.consume(1)
@@ -172,8 +186,6 @@ func (p *Parser) processLinkURL() []Event {
 		return nil
 	}
 
-	var urlTokens []tokenizer.Token
-
 	for len(p.buf) > 0 {
 		tok := p.buf[0]
 		if tok.Type == tokenizer.NewlineToken {
@@ -182,7 +194,7 @@ func (p *Parser) processLinkURL() []Event {
 		if tok.Type == tokenizer.RightParenToken {
 			p.consume(1)
 			var urlStr strings.Builder
-			for _, t := range urlTokens {
+			for _, t := range p.linkURLBuf {
 				urlStr.WriteString(t.Value)
 			}
 			var textStr strings.Builder
@@ -190,12 +202,13 @@ func (p *Parser) processLinkURL() []Event {
 				textStr.WriteString(t.Value)
 			}
 			p.linkBuf = nil
+			p.linkURLBuf = nil
 			p.linkBracketConsumed = false
 			p.state = NormalState
 			return []Event{{Type: LinkEvent, Value: textStr.String(), URL: urlStr.String()}}
 		}
 		p.consume(1)
-		urlTokens = append(urlTokens, tok)
+		p.linkURLBuf = append(p.linkURLBuf, tok)
 	}
 	return nil
 }
@@ -207,6 +220,13 @@ func (p *Parser) flushLinkAsText() []Event {
 		events = append(events, Event{Type: TextEvent, Value: tok.Value})
 	}
 	events = append(events, Event{Type: TextEvent, Value: "]"})
+	if p.state == LinkURLState {
+		events = append(events, Event{Type: TextEvent, Value: "("})
+		for _, tok := range p.linkURLBuf {
+			events = append(events, Event{Type: TextEvent, Value: tok.Value})
+		}
+		p.linkURLBuf = nil
+	}
 	p.linkBuf = nil
 	p.linkBracketConsumed = false
 	p.state = NormalState

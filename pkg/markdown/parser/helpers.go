@@ -68,31 +68,40 @@ func (p *Parser) hasNewline() bool {
 	return false
 }
 
-func (p *Parser) isHorizontalRule(tt tokenizer.TokenType) bool {
+func (p *Parser) checkConsecutive(tt tokenizer.TokenType, n int) (matched bool, waiting bool) {
+	for i := 0; i < n && i < len(p.buf); i++ {
+		if p.buf[i].Type != tt {
+			return false, false
+		}
+	}
+	if len(p.buf) < n {
+		if p.eof {
+			return false, false
+		}
+		return false, true
+	}
+	return true, false
+}
+
+func (p *Parser) checkHorizontalRule(tt tokenizer.TokenType) (matched bool, waiting bool) {
 	i := 0
 	for i < len(p.buf) && p.buf[i].Type == tt {
 		i++
 	}
-	if i < 3 {
-		return false
-	}
-	if i < len(p.buf) && p.buf[i].Type == tokenizer.NewlineToken {
-		p.consume(i)
-		return true
-	}
-	return false
-}
-
-func (p *Parser) hasConsecutive(tt tokenizer.TokenType, n int) bool {
-	if len(p.buf) < n {
-		return false
-	}
-	for i := 0; i < n; i++ {
-		if p.buf[i].Type != tt {
-			return false
+	if i == len(p.buf) {
+		if p.eof {
+			return false, false
 		}
+		return false, true
 	}
-	return true
+	if i < 3 {
+		return false, false
+	}
+	if p.buf[i].Type == tokenizer.NewlineToken {
+		p.consume(i)
+		return true, false
+	}
+	return false, false
 }
 
 func (p *Parser) countConsecutive(tt tokenizer.TokenType) int {

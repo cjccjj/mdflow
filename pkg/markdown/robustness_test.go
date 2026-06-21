@@ -315,6 +315,18 @@ func TestRobustness_StreamingMixed(t *testing.T) {
 	}
 }
 
+func TestRobustness_StreamingUTF8Split(t *testing.T) {
+	// The snowman rune ☃ is 3 bytes: e2 98 83
+	// We stream it byte by byte
+	out := renderStreaming("\xe2", "\x98", "\x83")
+	if !strings.Contains(out, "☃") {
+		t.Errorf("expected snowman '☃', got %q", out)
+	}
+	if strings.Contains(out, "\ufffd") {
+		t.Errorf("found replacement character in output: %q", out)
+	}
+}
+
 // ---- large input doesn't crash or hang ----
 
 func TestRobustness_LargeInput(t *testing.T) {

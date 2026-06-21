@@ -3,6 +3,7 @@ package markdown
 import (
 	"bytes"
 	"io"
+	"unicode/utf8"
 
 	"github.com/cjccjj/mdflow/pkg/markdown/parser"
 	"github.com/cjccjj/mdflow/pkg/markdown/render"
@@ -10,9 +11,10 @@ import (
 )
 
 type Pipeline struct {
-	parser *parser.Parser
-	writer *render.Writer
-	w      io.Writer
+	parser  *parser.Parser
+	writer  *render.Writer
+	w       io.Writer
+	utf8Buf []byte
 }
 
 func NewPipeline(w io.Writer, theme render.Theme) *Pipeline {
@@ -28,6 +30,27 @@ func NewPipeline(w io.Writer, theme render.Theme) *Pipeline {
 
 func (p *Pipeline) Write(data []byte) (int, error) {
 	n := len(data)
+
+	if len(p.utf8Buf) > 0 {
+		data = append(p.utf8Buf, data...)
+		p.utf8Buf = nil
+	}
+
+	if len(data) > 0 {
+		start := len(data) - 1
+		for i := 0; i < 4 && start >= 0; i, start = i+1, start-1 {
+			if utf8.RuneStart(data[start]) {
+				break
+			}
+		}
+		if start >= 0 && start < len(data) && utf8.RuneStart(data[start]) {
+			if !utf8.FullRune(data[start:]) {
+				p.utf8Buf = append([]byte(nil), data[start:]...)
+				data = data[:start]
+			}
+		}
+	}
+
 	for len(data) > 0 {
 		idx := bytes.IndexByte(data, '\n')
 		var chunk []byte
@@ -62,9 +85,21 @@ func (p *Pipeline) Flush() error {
 func (p *Pipeline) Reset() {
 	p.writer.ResetStyles()
 	p.parser.Reset()
+	p.utf8Buf = nil
 }
 
 func (p *Pipeline) Close() error {
+	if len(p.utf8Buf) > 0 {
+		tokens := tokenizer.Tokenize(p.utf8Buf)
+		events := p.parser.Parse(tokens)
+		for _, e := range events {
+			if err := p.writer.Handle(e); err != nil {
+				return err
+			}
+		}
+		p.utf8Buf = nil
+	}
+
 	if err := p.Flush(); err != nil {
 		return err
 	}

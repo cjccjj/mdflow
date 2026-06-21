@@ -7,7 +7,11 @@ import (
 )
 
 func (p *Parser) tryHeader() []Event {
-	if !p.hasConsecutive(tokenizer.HashToken, 1) || len(p.buf) < 2 {
+	matched, waiting := p.checkConsecutive(tokenizer.HashToken, 1)
+	if waiting || (matched && len(p.buf) < 2) {
+		return nil
+	}
+	if !matched {
 		return nil
 	}
 
@@ -83,12 +87,16 @@ func (p *Parser) tryBulletOrBold() []Event {
 		}
 		return events
 	}
-	if p.hasConsecutive(tokenizer.StarToken, 2) {
+	matched, waiting := p.checkConsecutive(tokenizer.StarToken, 2)
+	if matched {
 		p.consume(2)
 		p.state = BoldState
 		p.boldOpener = tokenizer.StarToken
 		p.lineStart = false
 		return []Event{{Type: BoldStartEvent}}
+	}
+	if waiting {
+		return nil
 	}
 	if len(p.buf) >= 3 && p.buf[1].Type == tokenizer.TextToken &&
 		!strings.HasPrefix(p.buf[1].Value, " ") && p.buf[2].Type == tokenizer.StarToken {
@@ -98,12 +106,9 @@ func (p *Parser) tryBulletOrBold() []Event {
 		p.lineStart = false
 		return []Event{{Type: ItalicStartEvent}}
 	}
-	if len(p.buf) >= 2 {
-		p.consume(1)
-		p.lineStart = false
-		return []Event{{Type: TextEvent, Value: "*"}}
-	}
-	return nil
+	p.consume(1)
+	p.lineStart = false
+	return []Event{{Type: TextEvent, Value: "*"}}
 }
 
 func (p *Parser) processHeader() []Event {
@@ -129,15 +134,24 @@ func (p *Parser) processHeader() []Event {
 func (p *Parser) processCodeBlock() []Event {
 	var events []Event
 	for len(p.buf) > 0 {
-		if p.lineStart && p.hasConsecutive(p.fenceChar, p.fenceLen) {
-			n := p.countConsecutive(p.fenceChar)
-			p.consume(n)
-			p.state = NormalState
-			p.fenceLen = 0
-			p.fenceChar = 0
-			p.codeBlockFirst = false
-			events = append(events, Event{Type: CodeBlockEndEvent})
-			return events
+		if p.lineStart && p.buf[0].Type == p.fenceChar {
+			matched, waiting := p.checkConsecutive(p.fenceChar, p.fenceLen)
+			if matched {
+				n := p.countConsecutive(p.fenceChar)
+				if n == len(p.buf) {
+					break
+				}
+				p.consume(n)
+				p.state = NormalState
+				p.fenceLen = 0
+				p.fenceChar = 0
+				p.codeBlockFirst = false
+				events = append(events, Event{Type: CodeBlockEndEvent})
+				return events
+			}
+			if waiting {
+				break
+			}
 		}
 		tok := p.buf[0]
 		p.consume(1)
@@ -371,16 +385,22 @@ func (p *Parser) checkSetextUnderline() (int, bool) {
 		}
 	}
 
-	if first.Type == tokenizer.DashToken && p.hasConsecutive(tokenizer.DashToken, 3) {
-		n := p.countConsecutive(tokenizer.DashToken)
-		p.consume(n)
-		if len(p.buf) > 0 && p.buf[0].Type == tokenizer.TextToken && strings.TrimSpace(p.buf[0].Value) == "" {
-			p.consume(1)
+	if first.Type == tokenizer.DashToken {
+		matched, waiting := p.checkConsecutive(tokenizer.DashToken, 3)
+		if waiting {
+			return 0, false
 		}
-		if len(p.buf) > 0 && p.buf[0].Type == tokenizer.NewlineToken {
-			p.consume(1)
-			p.lineStart = true
-			return 2, true
+		if matched {
+			n := p.countConsecutive(tokenizer.DashToken)
+			p.consume(n)
+			if len(p.buf) > 0 && p.buf[0].Type == tokenizer.TextToken && strings.TrimSpace(p.buf[0].Value) == "" {
+				p.consume(1)
+			}
+			if len(p.buf) > 0 && p.buf[0].Type == tokenizer.NewlineToken {
+				p.consume(1)
+				p.lineStart = true
+				return 2, true
+			}
 		}
 	}
 
