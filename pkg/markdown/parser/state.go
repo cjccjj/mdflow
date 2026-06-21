@@ -15,4 +15,6 @@ const (
 	TablePendingState
 	TableBodyState
 	SetextPendingState
+	LinkTextState
+	LinkURLState
 )

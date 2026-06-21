@@ -287,6 +287,36 @@ var goldenCases = []goldenCase{
 		wantText: []string{"Longer Title Here"},
 		wantANSI: []string{"\033[1;48;5;63;38;5;228m", "\033[0m"},
 	},
+	{
+		name:     "link_basic",
+		input:    "see [link](http://example.com) here",
+		wantText: []string{"see link (http://example.com) here"},
+		wantANSI: []string{"\033[4;34m", "\033[2;34m", "\033[0m"},
+	},
+	{
+		name:     "link_at_line_start",
+		input:    "[home](http://home.com)\n",
+		wantText: []string{"home (http://home.com)"},
+		wantANSI: []string{"\033[4;34m", "\033[2;34m", "\033[0m"},
+	},
+	{
+		name:     "image_not_link",
+		input:    "![alt](img.png)",
+		wantText: []string{"![alt](img.png)"},
+		wantANSI: nil,
+	},
+	{
+		name:     "bracket_not_link",
+		input:    "[text] not a link",
+		wantText: []string{"[text] not a link"},
+		wantANSI: nil,
+	},
+	{
+		name:     "link_empty_url",
+		input:    "[text]()",
+		wantText: []string{"text ()"},
+		wantANSI: []string{"\033[4;34m", "\033[0m"},
+	},
 }
 
 func TestGolden_OneShot(t *testing.T) {
@@ -545,5 +575,74 @@ func TestGolden_SetextNotHeading_MidStreaming(t *testing.T) {
 	}
 	if strings.Contains(out, "\033[1;48;5;63;38;5;228m") {
 		t.Errorf("should not be H1 heading: %q", out)
+	}
+}
+
+func TestGolden_LinkStreaming(t *testing.T) {
+	tests := []struct {
+		name   string
+		chunks []string
+	}{
+		{"full", []string{"[link](http://x.com)"}},
+		{"split_text", []string{"[li", "nk](http://x.com)"}},
+		{"split_url", []string{"[link](", "http://x.com)"}},
+		{"split_bracket_paren", []string{"[link]", "(http://x.com)"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			r := NewRenderer(&buf)
+			for _, c := range tc.chunks {
+				r.Write([]byte(c))
+			}
+			r.Close()
+			out := buf.String()
+			if !strings.Contains(out, "\033[4;34m") {
+				t.Errorf("link style missing: %q", out)
+			}
+			if !strings.Contains(out, "link") {
+				t.Errorf("link text missing: %q", out)
+			}
+			if !strings.Contains(out, "http://x.com") {
+				t.Errorf("url missing: %q", out)
+			}
+		})
+	}
+}
+
+func TestGolden_LinkNotALink(t *testing.T) {
+	notLinks := []string{
+		"[text]",                   // no parens
+		"[text] not parens",       // space before (
+		"[text]()",                // empty URL - should still render
+		"![alt](img.png)",         // image syntax
+	}
+	for _, input := range notLinks {
+		out := renderOneShot(input)
+		if strings.Contains(out, "\033[4;34m") {
+			if input == "[text]()" {
+				continue // this one IS a valid link with empty URL
+			}
+			t.Errorf("should not be link: input=%q output=%q", input, out)
+		}
+	}
+}
+
+func TestGolden_LinkCrossChunk(t *testing.T) {
+	// Test link detection across chunk boundaries
+	var buf bytes.Buffer
+	r := NewRenderer(&buf)
+
+	r.Write([]byte("text ["))
+	r.Write([]byte("link](http://x.com)"))
+	r.Write([]byte(" more"))
+	r.Close()
+
+	out := buf.String()
+	if !strings.Contains(out, "\033[4;34m") {
+		t.Errorf("link style missing in cross-chunk: %q", out)
+	}
+	if !strings.Contains(out, "http://x.com") {
+		t.Errorf("url missing in cross-chunk: %q", out)
 	}
 }

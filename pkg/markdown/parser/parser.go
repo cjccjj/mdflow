@@ -18,6 +18,9 @@ type Parser struct {
 	boldOpener      tokenizer.TokenType
 	setextWaiting   bool
 	setextBuf       []tokenizer.Token
+	linkBuf         []tokenizer.Token
+	linkBracketConsumed bool
+	prevChar        byte
 }
 
 func New() *Parser {
@@ -38,6 +41,9 @@ func (p *Parser) Reset() {
 	p.boldOpener = 0
 	p.setextWaiting = false
 	p.setextBuf = nil
+	p.linkBuf = nil
+	p.linkBracketConsumed = false
+	p.prevChar = 0
 }
 
 func (p *Parser) Parse(tokens []tokenizer.Token) (events []Event) {
@@ -99,6 +105,12 @@ func (p *Parser) process() []Event {
 
 		case SetextPendingState:
 			events = append(events, p.processSetextPending()...)
+
+		case LinkTextState:
+			events = append(events, p.processLinkText()...)
+
+		case LinkURLState:
+			events = append(events, p.processLinkURL()...)
 		}
 
 		if len(p.buf) == prevLen && p.state == prevState {
@@ -255,6 +267,14 @@ func (p *Parser) processNormal() []Event {
 		}
 	}
 
+	if first.Type == tokenizer.LeftBracketToken && p.prevChar != '!' {
+		p.consume(1)
+		p.state = LinkTextState
+		p.linkBuf = nil
+		p.linkBracketConsumed = false
+		return nil
+	}
+
 	return p.emitTextOrSpecial()
 }
 
@@ -267,14 +287,21 @@ func (p *Parser) emitTextOrSpecial() []Event {
 			p.consume(1)
 			p.lineStart = false
 			events = append(events, Event{Type: TextEvent, Value: tok.Value})
+			if len(tok.Value) > 0 {
+				p.prevChar = tok.Value[len(tok.Value)-1]
+			}
 		case tokenizer.NewlineToken:
 			p.consume(1)
 			p.lineStart = true
 			events = append(events, Event{Type: NewlineEvent})
+			p.prevChar = '\n'
 		default:
 			p.consume(1)
 			p.lineStart = false
 			events = append(events, Event{Type: TextEvent, Value: tok.Value})
+			if len(tok.Value) > 0 {
+				p.prevChar = tok.Value[len(tok.Value)-1]
+			}
 		}
 		if p.state != NormalState || p.bufferHasPattern() {
 			break
@@ -320,6 +347,9 @@ func (p *Parser) bufferHasPattern() bool {
 		return true
 	}
 	if p.buf[0].Type == tokenizer.UnderscoreToken {
+		return true
+	}
+	if p.buf[0].Type == tokenizer.LeftBracketToken {
 		return true
 	}
 	return false

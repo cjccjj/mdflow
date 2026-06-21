@@ -25,6 +25,7 @@ const (
 	TableEndEvent
 	BlockquoteStartEvent
 	BlockquoteEndEvent
+	LinkEvent
 )
 
 type Event struct {
@@ -82,6 +83,8 @@ func (e EventType) String() string {
 		return "BlockquoteStart"
 	case BlockquoteEndEvent:
 		return "BlockquoteEnd"
+	case LinkEvent:
+		return "Link"
 	default:
 		return "Unknown"
 	}

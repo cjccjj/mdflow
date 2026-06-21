@@ -24,6 +24,8 @@ type Theme struct {
 	TableBorder   Style
 	TableHeader   Style
 	TableCell     Style
+	LinkText      Style
+	LinkURL       Style
 	Text          Style
 }
 
@@ -99,6 +101,14 @@ var DefaultTheme = Theme{
 	TableCell: Style{
 		Prefix: "",
 		Suffix: "",
+	},
+	LinkText: Style{
+		Prefix: "\033[4;34m",
+		Suffix: "\033[0m",
+	},
+	LinkURL: Style{
+		Prefix: "\033[2;34m",
+		Suffix: "\033[0m",
 	},
 	Text: Style{},
 }

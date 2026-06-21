@@ -14,6 +14,10 @@ const (
 	TabToken
 	UnderscoreToken
 	GreaterToken
+	LeftBracketToken
+	RightBracketToken
+	LeftParenToken
+	RightParenToken
 	EOFToken
 )
 
@@ -46,6 +50,14 @@ func (t TokenType) String() string {
 		return "Underscore"
 	case GreaterToken:
 		return "Greater"
+	case LeftBracketToken:
+		return "LeftBracket"
+	case RightBracketToken:
+		return "RightBracket"
+	case LeftParenToken:
+		return "LeftParen"
+	case RightParenToken:
+		return "RightParen"
 	case EOFToken:
 		return "EOF"
 	default:

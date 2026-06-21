@@ -132,10 +132,13 @@ func TestRobustness_BlockquoteStyled(t *testing.T) {
 
 func TestRobustness_LinkPrintsRaw(t *testing.T) {
 	out := renderOutput("see [link](http://example.com) here\n")
-	if !strings.Contains(out, "[link]") {
+	if !strings.Contains(out, "\033[4;34m") {
+		t.Errorf("link style not applied: %q", out)
+	}
+	if !strings.Contains(out, "link") {
 		t.Errorf("link text missing: %q", out)
 	}
-	if !strings.Contains(out, "(http://example.com)") {
+	if !strings.Contains(out, "http://example.com") {
 		t.Errorf("link url missing: %q", out)
 	}
 }
@@ -179,9 +182,12 @@ func TestRobustness_MixedSupportedAndUnsupported(t *testing.T) {
 		t.Errorf("bold not styled: %q", out)
 	}
 
-	// Unsupported should be raw
-	if !strings.Contains(out, "[a link](http://x.com)") {
-		t.Errorf("link not preserved: %q", out)
+	// Link should now be styled
+	if !strings.Contains(out, "\033[4;34m") {
+		t.Errorf("link not styled: %q", out)
+	}
+	if !strings.Contains(out, "http://x.com") {
+		t.Errorf("link url missing: %q", out)
 	}
 	if !strings.Contains(out, "blockquote") {
 		t.Errorf("blockquote not preserved: %q", out)

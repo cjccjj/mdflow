@@ -37,6 +37,8 @@ func (p *Parser) CloseStates() []Event {
 		p.tableHeaderBuf = nil
 	case SetextPendingState:
 		out = append(out, p.flushSetext()...)
+	case LinkTextState, LinkURLState:
+		out = append(out, p.flushLinkAsText()...)
 	}
 	return out
 }
@@ -61,6 +63,9 @@ func (p *Parser) Flush() []Event {
 	if p.state == SetextPendingState {
 		out = append(out, p.flushSetext()...)
 		p.state = NormalState
+	}
+	if p.state == LinkTextState || p.state == LinkURLState {
+		out = append(out, p.flushLinkAsText()...)
 	}
 	if len(p.buf) > 0 {
 		for _, tok := range p.buf {
@@ -103,6 +108,8 @@ func (p *Parser) safeFlush() []Event {
 		}
 	case SetextPendingState:
 		out = append(out, p.flushSetext()...)
+	case LinkTextState, LinkURLState:
+		out = append(out, p.flushLinkAsText()...)
 	}
 	for _, tok := range p.buf {
 		out = append(out, Event{Type: TextEvent, Value: tok.Value})

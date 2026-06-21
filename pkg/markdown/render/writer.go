@@ -157,6 +157,31 @@ func (w *Writer) Handle(e parser.Event) error {
 	case parser.TableEndEvent:
 		return w.handleTableEnd()
 
+	case parser.LinkEvent:
+		if _, err := w.aw.WriteString(w.theme.LinkText.Prefix); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString(e.Value); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString(w.theme.LinkText.Suffix); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString(" ("); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString(w.theme.LinkURL.Prefix); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString(e.URL); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString(w.theme.LinkURL.Suffix); err != nil {
+			return err
+		}
+		_, err := w.aw.WriteString(")")
+		return err
+
 	default:
 		return nil
 	}

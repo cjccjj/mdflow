@@ -71,6 +71,18 @@ func Tokenize(input []byte) []Token {
 		case '\t':
 			flushText()
 			tokens = append(tokens, Token{Type: TabToken, Value: "\t"})
+		case '[':
+			flushText()
+			tokens = append(tokens, Token{Type: LeftBracketToken, Value: "["})
+		case ']':
+			flushText()
+			tokens = append(tokens, Token{Type: RightBracketToken, Value: "]"})
+		case '(':
+			flushText()
+			tokens = append(tokens, Token{Type: LeftParenToken, Value: "("})
+		case ')':
+			flushText()
+			tokens = append(tokens, Token{Type: RightParenToken, Value: ")"})
 		case 0:
 			textBuf = append(textBuf, []byte("\uFFFD")...)
 		default:
