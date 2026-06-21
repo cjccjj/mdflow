@@ -16,6 +16,8 @@ type Parser struct {
 	tableColWidths  []int
 	italicOpener    tokenizer.TokenType
 	boldOpener      tokenizer.TokenType
+	setextWaiting   bool
+	setextBuf       []tokenizer.Token
 }
 
 func New() *Parser {
@@ -34,6 +36,8 @@ func (p *Parser) Reset() {
 	p.tableColWidths = nil
 	p.italicOpener = 0
 	p.boldOpener = 0
+	p.setextWaiting = false
+	p.setextBuf = nil
 }
 
 func (p *Parser) Parse(tokens []tokenizer.Token) (events []Event) {
@@ -92,6 +96,9 @@ func (p *Parser) process() []Event {
 
 		case TableBodyState:
 			events = append(events, p.processTableBody()...)
+
+		case SetextPendingState:
+			events = append(events, p.processSetextPending()...)
 		}
 
 		if len(p.buf) == prevLen && p.state == prevState {
@@ -239,6 +246,13 @@ func (p *Parser) processNormal() []Event {
 			events = append(events, Event{Type: TextEvent, Value: stripped})
 		}
 		return events
+	}
+
+	if p.lineStart && first.Type == tokenizer.TextToken {
+		if p.hasNewline() {
+			p.state = SetextPendingState
+			return nil
+		}
 	}
 
 	return p.emitTextOrSpecial()

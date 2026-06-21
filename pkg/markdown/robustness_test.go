@@ -162,7 +162,7 @@ func TestRobustness_ItalicStyled(t *testing.T) {
 }
 
 func TestRobustness_HorizontalRuleStyled(t *testing.T) {
-	out := renderOutput("text\n---\nmore text\n")
+	out := renderOutput("text\n\n---\nmore text\n")
 	if !strings.Contains(out, "\033[2m────────────────\033[0m") {
 		t.Errorf("horizontal rule not styled: %q", out)
 	}

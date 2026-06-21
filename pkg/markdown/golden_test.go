@@ -263,6 +263,30 @@ var goldenCases = []goldenCase{
 		wantText: []string{"# not a header"},
 		wantANSI: nil,
 	},
+	{
+		name:     "setext_h1_equals",
+		input:    "Title\n=====\n",
+		wantText: []string{"Title"},
+		wantANSI: []string{"\033[1;48;5;63;38;5;228m", "\033[0m"},
+	},
+	{
+		name:     "setext_h2_dashes",
+		input:    "Title\n-----\n",
+		wantText: []string{"Title"},
+		wantANSI: []string{"\033[1;34m", "\033[0m"},
+	},
+	{
+		name:     "setext_h1_long_equals",
+		input:    "Title\n============\n",
+		wantText: []string{"Title"},
+		wantANSI: []string{"\033[1;48;5;63;38;5;228m", "\033[0m"},
+	},
+	{
+		name:     "setext_multiline_h1",
+		input:    "Longer Title Here\n=====\n",
+		wantText: []string{"Longer Title Here"},
+		wantANSI: []string{"\033[1;48;5;63;38;5;228m", "\033[0m"},
+	},
 }
 
 func TestGolden_OneShot(t *testing.T) {
@@ -435,5 +459,91 @@ func TestGolden_UnderlineBold(t *testing.T) {
 		if !strings.Contains(out, "\033[0m") {
 			t.Errorf("missing reset: input=%q output=%q", input, out)
 		}
+	}
+}
+
+func TestGolden_SetextHeading(t *testing.T) {
+	// Valid setext headings
+	valid := []struct {
+		input string
+		level int
+	}{
+		{"Title\n===\n", 1},
+		{"Title\n=====\n", 1},
+		{"Title\n---\n", 2},
+		{"Title\n-----\n", 2},
+		{"Multi Word Title\n=====\n", 1},
+		{" Multi Word Title \n===\n", 1}, // trailing whitespace ok
+	}
+	for _, tc := range valid {
+		out := renderOneShot(tc.input)
+		plain := stripANSI(out)
+		if tc.level == 1 {
+			if !strings.Contains(out, "\033[1;48;5;63;38;5;228m") {
+				t.Errorf("H1 setext not styled: input=%q output=%q", tc.input, out)
+			}
+		} else {
+			if !strings.Contains(out, "\033[1;34m") {
+				t.Errorf("H2 setext not styled: input=%q output=%q", tc.input, out)
+			}
+		}
+		if !strings.Contains(plain, strings.TrimSpace(strings.Split(tc.input, "\n")[0])) {
+			t.Errorf("heading text missing: input=%q plain=%q", tc.input, plain)
+		}
+	}
+
+	// Not setext headings (blank line between)
+	notHeading := []string{
+		"text\n\n---\n",     // blank line before ---
+		"text\n\n===\n",     // blank line before ===
+		"text\n--\n",        // only 2 dashes
+		"text\n==\n",        // only 2 equals
+		"\n===\n",           // empty candidate line
+	}
+	for _, input := range notHeading {
+		out := renderOneShot(input)
+		if strings.Contains(out, "\033[1;48;5;63;38;5;228m") || strings.Contains(out, "\033[1;34m") {
+			t.Errorf("should not be heading: input=%q output=%q", input, out)
+		}
+	}
+}
+
+func TestGolden_SetextStreaming(t *testing.T) {
+	var buf bytes.Buffer
+	r := NewRenderer(&buf)
+
+	// Simulate streaming: heading text first, then underline
+	r.Write([]byte("Title\n"))
+	r.Write([]byte("===\n"))
+	r.Close()
+
+	out := buf.String()
+	if !strings.Contains(out, "\033[1;48;5;63;38;5;228m") {
+		t.Errorf("setext H1 not styled in streaming: %q", out)
+	}
+	if !strings.Contains(out, "Title") {
+		t.Errorf("heading text missing in streaming: %q", out)
+	}
+}
+
+func TestGolden_SetextNotHeading_MidStreaming(t *testing.T) {
+	var buf bytes.Buffer
+	r := NewRenderer(&buf)
+
+	// Streaming: text line, then NOT a setext underline
+	r.Write([]byte("regular text\n"))
+	r.Write([]byte("more text\n"))
+	r.Close()
+
+	out := buf.String()
+	plain := stripANSI(out)
+	if !strings.Contains(plain, "regular text") {
+		t.Errorf("first line missing: %q", out)
+	}
+	if !strings.Contains(plain, "more text") {
+		t.Errorf("second line missing: %q", out)
+	}
+	if strings.Contains(out, "\033[1;48;5;63;38;5;228m") {
+		t.Errorf("should not be H1 heading: %q", out)
 	}
 }

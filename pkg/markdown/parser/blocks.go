@@ -258,3 +258,131 @@ func (p *Parser) processBlockquote() []Event {
 	}
 	return events
 }
+
+func (p *Parser) processSetextPending() []Event {
+	if !p.setextWaiting {
+		if !p.hasNewline() {
+			return nil
+		}
+		p.setextBuf = p.collectLineTokens()
+		p.setextWaiting = true
+		return nil
+	}
+
+	if !p.hasNewline() {
+		return nil
+	}
+
+	level, ok := p.checkSetextUnderline()
+	if ok {
+		if !hasTextContent(p.setextBuf) {
+			events := p.parseInlineLine(p.setextBuf)
+			events = append(events, Event{Type: NewlineEvent})
+			p.setextBuf = nil
+			p.setextWaiting = false
+			p.state = NormalState
+			return events
+		}
+		var events []Event
+		events = append(events, Event{Type: HeaderStartEvent, Level: level})
+		events = append(events, p.parseInlineLine(p.setextBuf)...)
+		events = append(events, Event{Type: HeaderEndEvent})
+		events = append(events, Event{Type: NewlineEvent})
+		p.setextBuf = nil
+		p.setextWaiting = false
+		p.state = NormalState
+		return events
+	}
+
+	events := p.parseInlineLine(p.setextBuf)
+	events = append(events, Event{Type: NewlineEvent})
+	p.setextBuf = nil
+	p.setextWaiting = false
+	p.state = NormalState
+	return events
+}
+
+func (p *Parser) collectLineTokens() []tokenizer.Token {
+	var tokens []tokenizer.Token
+	for len(p.buf) > 0 {
+		tok := p.buf[0]
+		p.consume(1)
+		if tok.Type == tokenizer.NewlineToken {
+			p.lineStart = true
+			return tokens
+		}
+		tokens = append(tokens, tok)
+		p.lineStart = false
+	}
+	return tokens
+}
+
+func (p *Parser) parseInlineLine(tokens []tokenizer.Token) []Event {
+	if len(tokens) == 0 {
+		return nil
+	}
+	tmp := New()
+	tmp.lineStart = false
+	events := tmp.Parse(tokens)
+	events = append(events, tmp.CloseStates()...)
+	return events
+}
+
+func hasTextContent(tokens []tokenizer.Token) bool {
+	for _, tok := range tokens {
+		if tok.Type == tokenizer.TextToken {
+			for _, r := range tok.Value {
+				if r != ' ' && r != '\t' {
+					return true
+				}
+			}
+		} else {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Parser) checkSetextUnderline() (int, bool) {
+	if len(p.buf) < 2 {
+		return 0, false
+	}
+
+	first := p.buf[0]
+
+	if first.Type == tokenizer.TextToken {
+		t := strings.TrimRight(first.Value, " \t")
+		if len(t) >= 3 {
+			allEq := true
+			for _, ch := range t {
+				if ch != '=' {
+					allEq = false
+					break
+				}
+			}
+			if allEq {
+				p.consume(1)
+				if len(p.buf) > 0 && p.buf[0].Type == tokenizer.NewlineToken {
+					p.consume(1)
+					p.lineStart = true
+					return 1, true
+				}
+			}
+		}
+	}
+
+	if first.Type == tokenizer.DashToken && p.hasConsecutive(tokenizer.DashToken, 3) {
+		n := p.countConsecutive(tokenizer.DashToken)
+		p.consume(n)
+		if len(p.buf) > 0 && p.buf[0].Type == tokenizer.TextToken && strings.TrimSpace(p.buf[0].Value) == "" {
+			p.consume(1)
+		}
+		if len(p.buf) > 0 && p.buf[0].Type == tokenizer.NewlineToken {
+			p.consume(1)
+			p.lineStart = true
+			return 2, true
+		}
+	}
+
+	return 0, false
+}

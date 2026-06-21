@@ -14,4 +14,5 @@ const (
 	BlockquoteState
 	TablePendingState
 	TableBodyState
+	SetextPendingState
 )

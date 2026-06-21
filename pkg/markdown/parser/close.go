@@ -35,6 +35,8 @@ func (p *Parser) CloseStates() []Event {
 			out = append(out, Event{Type: NewlineEvent})
 		}
 		p.tableHeaderBuf = nil
+	case SetextPendingState:
+		out = append(out, p.flushSetext()...)
 	}
 	return out
 }
@@ -54,6 +56,10 @@ func (p *Parser) Flush() []Event {
 		out = append(out, Event{Type: TextEvent, Value: "| " + strings.Join(p.tableHeaderBuf, " | ") + " |"})
 		out = append(out, Event{Type: NewlineEvent})
 		p.tableHeaderBuf = nil
+		p.state = NormalState
+	}
+	if p.state == SetextPendingState {
+		out = append(out, p.flushSetext()...)
 		p.state = NormalState
 	}
 	if len(p.buf) > 0 {
@@ -95,10 +101,21 @@ func (p *Parser) safeFlush() []Event {
 			out = append(out, Event{Type: TextEvent, Value: "| " + strings.Join(p.tableHeaderBuf, " | ") + " |"})
 			out = append(out, Event{Type: NewlineEvent})
 		}
+	case SetextPendingState:
+		out = append(out, p.flushSetext()...)
 	}
 	for _, tok := range p.buf {
 		out = append(out, Event{Type: TextEvent, Value: tok.Value})
 	}
 	p.Reset()
+	return out
+}
+
+func (p *Parser) flushSetext() []Event {
+	var out []Event
+	out = append(out, p.parseInlineLine(p.setextBuf)...)
+	out = append(out, Event{Type: NewlineEvent})
+	p.setextBuf = nil
+	p.setextWaiting = false
 	return out
 }
