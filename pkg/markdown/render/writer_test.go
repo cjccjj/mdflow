@@ -27,7 +27,7 @@ func TestWriterHeader(t *testing.T) {
 	aw := NewAnsiWriter(&buf)
 	w := NewWriter(aw, DefaultTheme)
 
-	_ = w.Handle(parser.Event{Type: parser.HeaderStartEvent, Value: "h1"})
+	_ = w.Handle(parser.Event{Type: parser.HeaderStartEvent, Level: 1})
 	_ = w.Handle(parser.Event{Type: parser.TextEvent, Value: "Hello"})
 	_ = w.Handle(parser.Event{Type: parser.HeaderEndEvent})
 
@@ -42,7 +42,7 @@ func TestWriterHeaderH2(t *testing.T) {
 	aw := NewAnsiWriter(&buf)
 	w := NewWriter(aw, DefaultTheme)
 
-	_ = w.Handle(parser.Event{Type: parser.HeaderStartEvent, Value: "h2"})
+	_ = w.Handle(parser.Event{Type: parser.HeaderStartEvent, Level: 2})
 	_ = w.Handle(parser.Event{Type: parser.TextEvent, Value: "Hello"})
 	_ = w.Handle(parser.Event{Type: parser.HeaderEndEvent})
 

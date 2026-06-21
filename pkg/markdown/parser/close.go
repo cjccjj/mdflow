@@ -26,8 +26,7 @@ func (p *Parser) CloseStates() []Event {
 	case TableBodyState:
 		cells, ok := p.flushBodyRow()
 		if ok {
-			rowVal := strings.Join(cells, "\x00")
-			out = append(out, Event{Type: TableRowEvent, Value: rowVal})
+			out = append(out, Event{Type: TableRowEvent, Cells: cells})
 		}
 		out = append(out, Event{Type: TableEndEvent})
 	case TablePendingState:
@@ -45,8 +44,7 @@ func (p *Parser) Flush() []Event {
 	if p.state == TableBodyState {
 		cells, ok := p.flushBodyRow()
 		if ok {
-			rowVal := strings.Join(cells, "\x00")
-			out = append(out, Event{Type: TableRowEvent, Value: rowVal})
+			out = append(out, Event{Type: TableRowEvent, Cells: cells})
 		}
 		out = append(out, Event{Type: TableEndEvent})
 		p.state = NormalState
@@ -89,8 +87,7 @@ func (p *Parser) safeFlush() []Event {
 	case TableBodyState:
 		cells, ok := p.flushBodyRow()
 		if ok {
-			rowVal := strings.Join(cells, "\x00")
-			out = append(out, Event{Type: TableRowEvent, Value: rowVal})
+			out = append(out, Event{Type: TableRowEvent, Cells: cells})
 		}
 		out = append(out, Event{Type: TableEndEvent})
 	case TablePendingState:

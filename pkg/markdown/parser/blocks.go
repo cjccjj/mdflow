@@ -21,7 +21,7 @@ func (p *Parser) tryHeader() []Event {
 				p.consume(i + 1)
 				trimmed := strings.TrimPrefix(tok.Value, " ")
 				p.state = HeaderState
-				events := []Event{{Type: HeaderStartEvent, Value: headerLabel(level)}}
+				events := []Event{{Type: HeaderStartEvent, Level: level}}
 				if trimmed != "" {
 					events = append(events, Event{Type: TextEvent, Value: trimmed})
 				}

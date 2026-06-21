@@ -28,9 +28,12 @@ const (
 )
 
 type Event struct {
-	Type  EventType
-	Value string
-	Extra any
+	Type   EventType
+	Value  string
+	Level  int
+	Cells  []string
+	Widths []int
+	URL    string
 }
 
 func (e EventType) String() string {

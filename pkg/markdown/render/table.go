@@ -8,8 +8,8 @@ import (
 )
 
 func (w *Writer) handleTableStart(e parser.Event) error {
-	headerCells := strings.Split(e.Value, "\x00")
-	sepWidths, _ := e.Extra.([]int)
+	headerCells := e.Cells
+	sepWidths := e.Widths
 	if sepWidths == nil {
 		return nil
 	}
@@ -59,7 +59,7 @@ func (w *Writer) handleTableStart(e parser.Event) error {
 }
 
 func (w *Writer) handleTableRow(e parser.Event) error {
-	cells := strings.Split(e.Value, "\x00")
+	cells := e.Cells
 	w.tableRows = append(w.tableRows, cells)
 
 	newWidths := make([]int, len(w.tableWidths))

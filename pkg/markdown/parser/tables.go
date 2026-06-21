@@ -44,8 +44,7 @@ func (p *Parser) processTablePending() []Event {
 	p.state = TableBodyState
 	p.lineStart = true
 
-	headerVal := strings.Join(p.tableHeaderBuf, "\x00")
-	return []Event{{Type: TableStartEvent, Value: headerVal, Extra: widths}}
+	return []Event{{Type: TableStartEvent, Cells: p.tableHeaderBuf, Widths: widths}}
 }
 
 func (p *Parser) processTableBody() []Event {
@@ -65,8 +64,7 @@ func (p *Parser) processTableBody() []Event {
 	}
 	p.lineStart = true
 
-	rowVal := strings.Join(cells, "\x00")
-	return []Event{{Type: TableRowEvent, Value: rowVal}}
+	return []Event{{Type: TableRowEvent, Cells: cells}}
 }
 
 func (p *Parser) rejectTable() []Event {

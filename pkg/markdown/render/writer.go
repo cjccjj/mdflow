@@ -53,20 +53,20 @@ func (w *Writer) Handle(e parser.Event) error {
 	case parser.HeaderStartEvent:
 		style := w.theme.H1
 		prefix := ""
-		switch e.Value {
-		case "h2":
+		switch e.Level {
+		case 2:
 			style = w.theme.H2
 			prefix = "## "
-		case "h3":
+		case 3:
 			style = w.theme.H3
 			prefix = "### "
-		case "h4":
+		case 4:
 			style = w.theme.H4
 			prefix = "#### "
-		case "h5":
+		case 5:
 			style = w.theme.H5
 			prefix = "##### "
-		case "h6":
+		case 6:
 			style = w.theme.H6
 			prefix = "###### "
 		}
