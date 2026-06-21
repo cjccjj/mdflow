@@ -24,7 +24,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          go build -trimpath -ldflags="-s -w" -o mdflow-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/mdflow/
+          go build -trimpath -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o mdflow-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/mdflow/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

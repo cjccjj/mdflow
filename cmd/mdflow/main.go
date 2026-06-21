@@ -12,16 +12,18 @@ import (
 	"golang.org/x/term"
 )
 
+var version = "dev"
+
 func main() {
 	if len(os.Args) > 1 || term.IsTerminal(int(os.Stdin.Fd())) {
-		fmt.Fprint(os.Stderr, `mdflow is a realtime streaming Markdown renderer.
+		fmt.Fprintf(os.Stderr, `mdflow %s is a realtime streaming Markdown renderer.
 
 Usage:
   llm "explain goroutines" | mdflow
   cat file.md | mdflow
 
 mdflow reads from stdin only; it does not accept file arguments.
-`)
+`, version)
 		os.Exit(1)
 	}
 
