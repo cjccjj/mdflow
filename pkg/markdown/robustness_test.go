@@ -120,6 +120,101 @@ func TestRobustness_TableWithInlineStyles(t *testing.T) {
 	}
 }
 
+func TestRobustness_TableAlignLeft(t *testing.T) {
+	out := renderOutput("| **bold** | *italic* |\n|:-------|:--------|\n| x | y |\n")
+	if !strings.Contains(out, "bold") {
+		t.Errorf("bold cell missing: %q", out)
+	}
+	if !strings.Contains(out, "italic") {
+		t.Errorf("italic cell missing: %q", out)
+	}
+}
+
+func TestRobustness_TableAlignCenter(t *testing.T) {
+	out := renderOutput("| a |\n|:---:|\n| b |\n")
+	if !strings.Contains(out, "a") && !strings.Contains(out, "b") {
+		t.Errorf("table with center alignment: %q", out)
+	}
+	if !strings.Contains(out, "┌") {
+		t.Errorf("center align table top border missing: %q", out)
+	}
+}
+
+func TestRobustness_TableAlignRight(t *testing.T) {
+	out := renderOutput("| a |\n|---:|\n| b |\n")
+	if !strings.Contains(out, "a") && !strings.Contains(out, "b") {
+		t.Errorf("table with right alignment: %q", out)
+	}
+	if !strings.Contains(out, "┌") {
+		t.Errorf("right align table top border missing: %q", out)
+	}
+}
+
+func TestRobustness_TableAlignMixed(t *testing.T) {
+	out := renderOutput("| a | b | c |\n|:---|---:|:---:|\n| 1 | 2 | 3 |\n")
+	if !strings.Contains(out, "┌") {
+		t.Errorf("mixed align table top border missing: %q", out)
+	}
+	if !strings.Contains(out, "1") || !strings.Contains(out, "2") || !strings.Contains(out, "3") {
+		t.Errorf("mixed align body cells missing: %q", out)
+	}
+}
+
+func TestRobustness_TableWrappedContent(t *testing.T) {
+	out := renderOutput("| Name | Description |\n|------|-------------|\n| A    | a long description that wraps |\n")
+	if !strings.Contains(out, "┌") {
+		t.Errorf("wrapped table top border missing: %q", out)
+	}
+	if !strings.Contains(out, "long") {
+		t.Errorf("wrapped content missing: %q", out)
+	}
+}
+
+func TestRobustness_TableWrappedBold(t *testing.T) {
+	out := renderOutput("| a |\n|---|\n| **bold text that wraps** |\n")
+	if !strings.Contains(out, "bold") {
+		t.Errorf("bold wrapped content missing: %q", out)
+	}
+	if !strings.Contains(out, "\033[1m") {
+		t.Errorf("bold style missing: %q", out)
+	}
+}
+
+func TestRobustness_TableWrappedEmoji(t *testing.T) {
+	out := renderOutput("| a |\n|---|\n| hello 🟢 world |\n")
+	if !strings.Contains(out, "hello") {
+		t.Errorf("emoji wrapped content missing: %q", out)
+	}
+	if !strings.Contains(out, "┌") {
+		t.Errorf("emoji table border missing: %q", out)
+	}
+}
+
+func TestRobustness_TableWrappedStreaming(t *testing.T) {
+	out := renderStreaming(
+		"| a | b |\n",
+		"|---|---|\n",
+		"| short | a very long cell that wraps |\n",
+		"| x | y |\n",
+	)
+	if !strings.Contains(out, "wraps") {
+		t.Errorf("streaming wrapped content missing: %q", out)
+	}
+	if !strings.Contains(out, "┌") {
+		t.Errorf("streaming wrapped table border missing: %q", out)
+	}
+	if !strings.Contains(out, "short") {
+		t.Errorf("streaming short cell missing: %q", out)
+	}
+}
+
+func TestRobustness_TableWrapAlign(t *testing.T) {
+	out := renderOutput("| left | center | right |\n|:-----|:------:|------:|\n| a long text | b long text | c long text |\n")
+	if !strings.Contains(out, "┌") {
+		t.Errorf("wrap+align table border missing: %q", out)
+	}
+}
+
 func TestRobustness_BlockquoteStyled(t *testing.T) {
 	out := renderOutput("> quoted text\n")
 	if !strings.Contains(out, "quoted text") {

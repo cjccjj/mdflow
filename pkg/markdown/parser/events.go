@@ -34,6 +34,7 @@ type Event struct {
 	Level  int
 	Cells  []string
 	Widths []int
+	Aligns []int
 	URL    string
 }
 

@@ -30,7 +30,8 @@ func (p *Parser) processTablePending() []Event {
 	if !ok || len(cells) == 0 {
 		return p.rejectTable()
 	}
-	if !isSeparatorCells(cells) {
+	aligns, ok := parseSeparatorAligns(cells)
+	if !ok {
 		return p.rejectTable()
 	}
 	widths := make([]int, len(cells))
@@ -41,10 +42,11 @@ func (p *Parser) processTablePending() []Event {
 		return p.rejectTable()
 	}
 	p.tableColWidths = widths
+	p.tableColAligns = aligns
 	p.state = TableBodyState
 	p.lineStart = true
 
-	return []Event{{Type: TableStartEvent, Cells: p.tableHeaderBuf, Widths: widths}}
+	return []Event{{Type: TableStartEvent, Cells: p.tableHeaderBuf, Widths: widths, Aligns: aligns}}
 }
 
 func (p *Parser) processTableBody() []Event {
@@ -54,12 +56,14 @@ func (p *Parser) processTableBody() []Event {
 	if p.buf[0].Type != tokenizer.PipeToken {
 		p.state = NormalState
 		p.tableColWidths = nil
+		p.tableColAligns = nil
 		return []Event{{Type: TableEndEvent}}
 	}
 	cells, ok := p.extractTableCells()
 	if !ok || len(cells) == 0 {
 		p.state = NormalState
 		p.tableColWidths = nil
+		p.tableColAligns = nil
 		return []Event{{Type: TableEndEvent}}
 	}
 	p.lineStart = true
@@ -160,17 +164,24 @@ func (p *Parser) flushBodyRow() ([]string, bool) {
 	return cells, len(cells) > 0
 }
 
-func isSeparatorCells(cells []string) bool {
+func parseSeparatorAligns(cells []string) (aligns []int, ok bool) {
+	const (
+		alignLeft   = 0
+		alignCenter = 1
+		alignRight  = 2
+	)
 	if len(cells) == 0 {
-		return false
+		return nil, false
 	}
-	for _, c := range cells {
+	aligns = make([]int, len(cells))
+	for i, c := range cells {
 		if c == "" {
+			aligns[i] = alignLeft
 			continue
 		}
 		for _, ch := range c {
 			if ch != '-' && ch != ':' && ch != ' ' {
-				return false
+				return nil, false
 			}
 		}
 		hasDash := false
@@ -181,8 +192,17 @@ func isSeparatorCells(cells []string) bool {
 			}
 		}
 		if !hasDash {
-			return false
+			return nil, false
+		}
+		leftColon := len(c) > 0 && c[0] == ':'
+		rightColon := len(c) > 0 && c[len(c)-1] == ':'
+		if leftColon && rightColon {
+			aligns[i] = alignCenter
+		} else if rightColon {
+			aligns[i] = alignRight
+		} else {
+			aligns[i] = alignLeft
 		}
 	}
-	return true
+	return aligns, true
 }

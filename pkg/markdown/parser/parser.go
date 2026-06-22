@@ -14,6 +14,7 @@ type Parser struct {
 	codeBlockFirst  bool
 	tableHeaderBuf  []string
 	tableColWidths  []int
+	tableColAligns  []int
 	italicOpener    tokenizer.TokenType
 	boldOpener      tokenizer.TokenType
 	setextWaiting   bool
@@ -39,6 +40,7 @@ func (p *Parser) Reset() {
 	p.codeBlockFirst = false
 	p.tableHeaderBuf = nil
 	p.tableColWidths = nil
+	p.tableColAligns = nil
 	p.italicOpener = 0
 	p.boldOpener = 0
 	p.setextWaiting = false

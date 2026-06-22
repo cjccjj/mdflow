@@ -21,6 +21,7 @@ func NewPipeline(w io.Writer, theme render.Theme) *Pipeline {
 	aw := render.NewAnsiWriter(w)
 	wr := render.NewWriter(aw, theme)
 	wr.SetLive(render.IsTerminal(w))
+	wr.SetTermWidth(render.TerminalWidth(w))
 	return &Pipeline{
 		parser: parser.New(),
 		writer: wr,

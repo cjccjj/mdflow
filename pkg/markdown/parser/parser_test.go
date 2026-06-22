@@ -317,3 +317,96 @@ func equal(a, b []string) bool {
 	}
 	return true
 }
+
+func intsEqual(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestParseSeparatorAligns_Left(t *testing.T) {
+	aligns, ok := parseSeparatorAligns([]string{"---", "---"})
+	if !ok {
+		t.Fatal("expected ok")
+	}
+	for i, a := range aligns {
+		if a != 0 {
+			t.Errorf("column %d: expected 0 (left), got %d", i, a)
+		}
+	}
+}
+
+func TestParseSeparatorAligns_LeftColon(t *testing.T) {
+	aligns, ok := parseSeparatorAligns([]string{":---"})
+	if !ok {
+		t.Fatal("expected ok")
+	}
+	if aligns[0] != 0 {
+		t.Errorf("expected 0 (left) for :---, got %d", aligns[0])
+	}
+}
+
+func TestParseSeparatorAligns_Center(t *testing.T) {
+	aligns, ok := parseSeparatorAligns([]string{":---:"})
+	if !ok {
+		t.Fatal("expected ok")
+	}
+	if aligns[0] != 1 {
+		t.Errorf("expected 1 (center) for :---:, got %d", aligns[0])
+	}
+}
+
+func TestParseSeparatorAligns_Right(t *testing.T) {
+	aligns, ok := parseSeparatorAligns([]string{"---:"})
+	if !ok {
+		t.Fatal("expected ok")
+	}
+	if aligns[0] != 2 {
+		t.Errorf("expected 2 (right) for ---:, got %d", aligns[0])
+	}
+}
+
+func TestParseSeparatorAligns_Mixed(t *testing.T) {
+	aligns, ok := parseSeparatorAligns([]string{"---", ":---:", "---:"})
+	if !ok {
+		t.Fatal("expected ok")
+	}
+	expected := []int{0, 1, 2}
+	if !intsEqual(aligns, expected) {
+		t.Errorf("expected %v, got %v", expected, aligns)
+	}
+}
+
+func TestParseSeparatorAligns_EmptyCell(t *testing.T) {
+	aligns, ok := parseSeparatorAligns([]string{"", "---"})
+	if !ok {
+		t.Fatal("expected ok")
+	}
+	if aligns[0] != 0 {
+		t.Errorf("expected 0 (left) for empty, got %d", aligns[0])
+	}
+}
+
+func TestParseSeparatorAligns_Invalid(t *testing.T) {
+	_, ok := parseSeparatorAligns([]string{"abc"})
+	if ok {
+		t.Fatal("expected not ok for non-separator")
+	}
+	_, ok = parseSeparatorAligns([]string{})
+	if ok {
+		t.Fatal("expected not ok for empty")
+	}
+}
+
+func TestParseSeparatorAligns_NoDash(t *testing.T) {
+	_, ok := parseSeparatorAligns([]string{":"})
+	if ok {
+		t.Fatal("expected not ok for colon-only")
+	}
+}

@@ -14,7 +14,9 @@ type Writer struct {
 	tableHeader        []string
 	tableRows          [][]string
 	tableWidths        []int
+	tableAligns        []int
 	tableLines         int
+	termWidth          int
 }
 
 func NewWriter(aw *AnsiWriter, theme Theme) *Writer {
@@ -23,6 +25,10 @@ func NewWriter(aw *AnsiWriter, theme Theme) *Writer {
 
 func (w *Writer) SetLive(v bool) {
 	w.live = v
+}
+
+func (w *Writer) SetTermWidth(width int) {
+	w.termWidth = width
 }
 
 func (w *Writer) Handle(e parser.Event) error {
