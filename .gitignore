@@ -20,7 +20,8 @@ go.work
 *.swo
 
 # Dev docs
-dev_docs/
+/dev_docs/
+/test/
 
 # User test files
 test*.md
