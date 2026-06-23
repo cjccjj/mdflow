@@ -284,22 +284,16 @@ func (p *Parser) processNormal() []Event {
 		return p.tryTableHeader()
 	}
 
-	if p.lineStart && first.Type == tokenizer.TabToken {
-		p.consume(1)
-		p.state = IndentedCodeBlockState
-		return []Event{{Type: CodeBlockStartEvent}}
-	}
-
-	if p.lineStart && first.Type == tokenizer.TextToken && hasLeadingIndent(first.Value) {
-		val := first.Value
-		stripped := stripIndent(val)
-		p.consume(1)
-		p.state = IndentedCodeBlockState
-		events := []Event{{Type: CodeBlockStartEvent}}
-		if stripped != "" {
-			events = append(events, Event{Type: TextEvent, Value: stripped})
+	if p.lineStart {
+		if ok, remaining := p.equivIndent(); ok {
+			p.state = IndentedCodeBlockState
+			p.lineStart = false
+			events := []Event{{Type: CodeBlockStartEvent}}
+			if remaining != "" {
+				events = append(events, Event{Type: TextEvent, Value: remaining})
+			}
+			return events
 		}
-		return events
 	}
 
 	if p.lineStart && first.Type == tokenizer.TextToken {

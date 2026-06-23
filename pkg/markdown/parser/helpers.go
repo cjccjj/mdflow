@@ -25,38 +25,33 @@ func orderedListPrefix(s string) (string, bool) {
 	return s[:end], true
 }
 
-func hasLeadingIndent(s string) bool {
-	spaces := 0
-	for _, r := range s {
-		if r == ' ' {
-			spaces++
-		} else if r == '\t' {
-			spaces += 4
-		} else {
-			break
-		}
-		if spaces >= 4 {
-			return true
-		}
-	}
-	return spaces >= 4
-}
-
-func stripIndent(s string) string {
-	spaces := 0
-	for i, r := range s {
-		if r == ' ' {
-			spaces++
-		} else if r == '\t' {
-			spaces += 4
-		} else {
-			if spaces >= 4 {
-				return s[i:]
+func (p *Parser) equivIndent() (bool, string) {
+	col := 0
+	for i, tok := range p.buf {
+		switch tok.Type {
+		case tokenizer.TabToken:
+			col = ((col + 4) / 4) * 4
+			if col >= 4 {
+				p.buf = p.buf[i+1:]
+				return true, ""
 			}
-			break
+		case tokenizer.TextToken:
+			for j, r := range tok.Value {
+				if r == ' ' {
+					col++
+					if col >= 4 {
+						p.buf = p.buf[i+1:]
+						return true, tok.Value[j+1:]
+					}
+				} else {
+					return false, ""
+				}
+			}
+		default:
+			return false, ""
 		}
 	}
-	return ""
+	return false, ""
 }
 
 func (p *Parser) hasNewline() bool {

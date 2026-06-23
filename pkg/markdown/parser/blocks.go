@@ -193,17 +193,10 @@ func (p *Parser) processIndentedCodeBlock() []Event {
 			events = append(events, Event{Type: NewlineEvent})
 			continue
 		}
-		if tok.Type == tokenizer.TabToken {
-			p.consume(1)
+		if ok, remaining := p.equivIndent(); ok {
 			p.lineStart = false
-			continue
-		}
-		if tok.Type == tokenizer.TextToken && hasLeadingIndent(tok.Value) {
-			val := stripIndent(tok.Value)
-			p.consume(1)
-			p.lineStart = false
-			if val != "" {
-				events = append(events, Event{Type: TextEvent, Value: val})
+			if remaining != "" {
+				events = append(events, Event{Type: TextEvent, Value: remaining})
 			}
 			continue
 		}
