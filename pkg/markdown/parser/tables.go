@@ -60,7 +60,7 @@ func (p *Parser) processTableBody() []Event {
 		return []Event{{Type: TableEndEvent}}
 	}
 	cells, ok := p.extractTableCells()
-	if !ok || len(cells) == 0 {
+	if !ok {
 		p.state = NormalState
 		p.tableColWidths = nil
 		p.tableColAligns = nil
@@ -88,6 +88,7 @@ func (p *Parser) extractTableCells() ([]string, bool) {
 	if len(p.buf) == 0 || p.buf[0].Type != tokenizer.PipeToken {
 		return nil, false
 	}
+	hadPipe := true
 	p.consume(1)
 	var cells []string
 	var current strings.Builder
@@ -101,7 +102,7 @@ func (p *Parser) extractTableCells() ([]string, bool) {
 			for len(cells) > 0 && cells[len(cells)-1] == "" {
 				cells = cells[:len(cells)-1]
 			}
-			return cells, len(cells) > 0
+			return cells, hadPipe
 		}
 		if tok.Type == tokenizer.BacktickToken {
 			backtickDepth = 1 - backtickDepth
@@ -125,7 +126,8 @@ func (p *Parser) flushBodyRow() ([]string, bool) {
 	if len(p.buf) == 0 {
 		return nil, false
 	}
-	if p.buf[0].Type == tokenizer.PipeToken {
+	hadPipe := p.buf[0].Type == tokenizer.PipeToken
+	if hadPipe {
 		p.consume(1)
 	}
 	var cells []string
@@ -140,7 +142,7 @@ func (p *Parser) flushBodyRow() ([]string, bool) {
 			for len(cells) > 0 && cells[len(cells)-1] == "" {
 				cells = cells[:len(cells)-1]
 			}
-			return cells, len(cells) > 0
+			return cells, hadPipe
 		}
 		if tok.Type == tokenizer.BacktickToken {
 			backtickDepth = 1 - backtickDepth
@@ -161,7 +163,7 @@ func (p *Parser) flushBodyRow() ([]string, bool) {
 	for len(cells) > 0 && cells[len(cells)-1] == "" {
 		cells = cells[:len(cells)-1]
 	}
-	return cells, len(cells) > 0
+	return cells, hadPipe
 }
 
 func parseSeparatorAligns(cells []string) (aligns []int, ok bool) {

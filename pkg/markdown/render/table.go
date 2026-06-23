@@ -2,6 +2,7 @@ package render
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/cjccjj/mdflow/pkg/markdown/parser"
@@ -91,6 +92,15 @@ func (w *Writer) handleTableRow(e parser.Event) error {
 		w.tableLines += n
 		return nil
 	}
+	w.tableRepaintCount++
+	if w.tableRepaintCount > 50 {
+		n, err := w.drawRow(w.tableWidths, cells, w.theme.TableCell, w.tableAligns)
+		if err != nil {
+			return err
+		}
+		w.tableLines += n
+		return nil
+	}
 	w.tableWidths = newWidths
 	return w.redrawTable()
 }
@@ -134,6 +144,7 @@ func (w *Writer) handleTableEnd() error {
 	w.tableWidths = nil
 	w.tableAligns = nil
 	w.tableLines = 0
+	w.tableRepaintCount = 0
 	return nil
 }
 
@@ -352,44 +363,67 @@ func (w *Writer) limitWidths(widths []int) []int {
 		return widths
 	}
 
+	// too many columns: even at floor=3 per column the table can't fit
+	if nCols*3+nCols+1 > w.termWidth {
+		return widths
+	}
+
 	available := w.termWidth - nCols - 1
 	if available < nCols*3 {
 		available = nCols * 3
 	}
 
-	sum := 0
-	for _, cw := range widths {
-		sum += cw
+	// sqrt-dampened weights
+	weights := make([]float64, nCols)
+	sumWeights := 0.0
+	for i, cw := range widths {
+		w := math.Sqrt(float64(cw))
+		weights[i] = w
+		sumWeights += w
 	}
 
+	// step 1: every column starts at floor
+	const floor = 3
 	result := make([]int, nCols)
 	allocated := 0
-	for i, cw := range widths {
-		result[i] = cw * available / sum
-		if result[i] < 3 {
-			result[i] = 3
-		}
-		allocated += result[i]
+	for i := range result {
+		result[i] = floor
+		allocated += floor
 	}
 
-	remainder := available - allocated
-	for remainder > 0 {
+	// step 2: distribute remaining proportionally, capped at per-column max
+	remaining := available - allocated
+	if remaining > 0 {
+		for i := range widths {
+			maxExtra := widths[i] - floor
+			if maxExtra <= 0 {
+				continue
+			}
+			extra := int(weights[i] * float64(remaining) / sumWeights)
+			if extra > maxExtra {
+				extra = maxExtra
+			}
+			result[i] += extra
+			allocated += extra
+		}
+	}
+
+	// step 3: fill any leftover — most room gets it
+	for allocated < available {
 		bestIdx := -1
-		bestFrac := 0.0
-		for i, cw := range widths {
-			exact := float64(cw) * float64(available) / float64(sum)
-			got := float64(result[i])
-			frac := exact - got
-			if frac > bestFrac {
-				bestFrac = frac
+		bestRoom := 0
+		for i := range widths {
+			room := widths[i] - result[i]
+			if room > bestRoom {
+				bestRoom = room
 				bestIdx = i
 			}
 		}
-		if bestIdx < 0 || result[bestIdx] >= widths[bestIdx] {
+		if bestIdx < 0 {
 			break
 		}
 		result[bestIdx]++
-		remainder--
+		allocated++
 	}
 
 	return result

@@ -17,6 +17,7 @@ type Writer struct {
 	tableAligns        []int
 	tableLines         int
 	termWidth          int
+	tableRepaintCount  int
 }
 
 func NewWriter(aw *AnsiWriter, theme Theme) *Writer {
