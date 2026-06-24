@@ -198,14 +198,14 @@ func (p *Parser) processCodeBlock() []Event {
 	var events []Event
 	var infoBuf strings.Builder
 	flushInfo := func() {
-			if infoBuf.Len() > 0 {
-				lang := strings.TrimSpace(resolveEntities(infoBuf.String()))
-				if lang != "" {
-					events = append(events, Event{Type: CodeBlockLangEvent, Value: lang})
-				}
-				infoBuf.Reset()
+		if infoBuf.Len() > 0 {
+			lang := strings.TrimSpace(resolveEntities(infoBuf.String()))
+			if lang != "" {
+				events = append(events, Event{Type: CodeBlockLangEvent, Value: lang})
 			}
+			infoBuf.Reset()
 		}
+	}
 	for len(p.buf) > 0 {
 		if p.lineStart && p.buf[0].Type == p.fenceChar {
 			matched, waiting := p.checkConsecutive(p.fenceChar, p.fenceLen)
@@ -243,7 +243,7 @@ func (p *Parser) processCodeBlock() []Event {
 					p.consume(1)
 					escaped := next.Value[:1]
 					if len(next.Value) > 1 {
-						p.buf = append([]tokenizer.Token{{Type: tokenizer.TextToken, Value: next.Value[1:]}}, p.buf...)
+						p.prependTokens(tokenizer.Token{Type: tokenizer.TextToken, Value: next.Value[1:]})
 					}
 					infoBuf.WriteString(escaped)
 					continue

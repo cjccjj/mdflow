@@ -5,53 +5,69 @@ import (
 )
 
 type Parser struct {
-	state           State
-	buf             []tokenizer.Token
-	lineStart       bool
-	headerLvl       int
-	fenceLen        int
-	fenceChar       tokenizer.TokenType
-	codeBlockFirst  bool
-	tableHeaderBuf  []string
-	tableColWidths  []int
-	tableColAligns  []int
-	italicOpener    tokenizer.TokenType
-	boldOpener      tokenizer.TokenType
-	setextWaiting   bool
-	setextBuf       []tokenizer.Token
+	state State
+	tokenBuffer
+	lineContext
+	blockContext
+	emphasisContext
+	tableContext
+	setextContext
+	linkContext
+}
+
+type tokenBuffer struct {
+	buf []tokenizer.Token
+	eof bool
+}
+
+type lineContext struct {
+	lineStart     bool
+	prevChar      byte
+	contentIndent int
+}
+
+type blockContext struct {
+	headerLvl      int
+	fenceLen       int
+	fenceChar      tokenizer.TokenType
+	codeBlockFirst bool
+}
+
+type emphasisContext struct {
+	italicOpener tokenizer.TokenType
+	boldOpener   tokenizer.TokenType
+}
+
+type tableContext struct {
+	tableHeaderBuf []string
+	tableColWidths []int
+	tableColAligns []int
+}
+
+type setextContext struct {
+	setextWaiting bool
+	setextBuf     []tokenizer.Token
+}
+
+type linkContext struct {
 	linkBuf             []tokenizer.Token
 	linkURLBuf          []tokenizer.Token
 	linkBracketConsumed bool
-	prevChar            byte
-	eof                 bool
-	contentIndent       int
 }
 
 func New() *Parser {
-	return &Parser{state: NormalState, lineStart: true}
+	return &Parser{state: NormalState, lineContext: lineContext{lineStart: true}}
 }
 
 func (p *Parser) Reset() {
 	p.state = NormalState
-	p.buf = nil
-	p.lineStart = true
-	p.headerLvl = 0
-	p.fenceLen = 0
-	p.fenceChar = 0
-	p.codeBlockFirst = false
-	p.tableHeaderBuf = nil
-	p.tableColWidths = nil
-	p.tableColAligns = nil
-	p.italicOpener = 0
-	p.boldOpener = 0
-	p.setextWaiting = false
-	p.setextBuf = nil
-	p.linkBuf = nil
-	p.linkURLBuf = nil
-	p.linkBracketConsumed = false
-	p.prevChar = 0
-	p.eof = false
-	p.contentIndent = 0
+	p.tokenBuffer = tokenBuffer{}
+	p.lineContext = lineContext{lineStart: true}
+	p.blockContext = blockContext{}
+	p.emphasisContext = emphasisContext{}
+	p.tableContext = tableContext{}
+	p.setextContext = setextContext{}
+	p.linkContext = linkContext{}
 }
 
 func (p *Parser) Parse(tokens []tokenizer.Token) (events []Event) {
@@ -65,15 +81,15 @@ func (p *Parser) Parse(tokens []tokenizer.Token) (events []Event) {
 		}
 	}()
 
-	p.buf = append(p.buf, tokens...)
+	p.appendTokens(tokens)
 	return p.process()
 }
 
 func (p *Parser) process() []Event {
 	var events []Event
 
-	for len(p.buf) > 0 {
-		prevLen := len(p.buf)
+	for p.hasBufferedTokens() {
+		prevLen := p.bufferedLen()
 		prevState := p.state
 
 		switch p.state {
@@ -121,7 +137,7 @@ func (p *Parser) process() []Event {
 			events = append(events, p.processLinkURL()...)
 		}
 
-		if len(p.buf) == prevLen && p.state == prevState {
+		if p.bufferedLen() == prevLen && p.state == prevState {
 			break
 		}
 	}
@@ -130,34 +146,57 @@ func (p *Parser) process() []Event {
 }
 
 func (p *Parser) processNormal() []Event {
-	var events []Event
 	if len(p.buf) == 0 {
-		return events
+		return nil
 	}
 
 	first := p.buf[0]
 
-	if first.Type == tokenizer.BackslashToken {
-		return p.handleBackslash()
-	}
-
-	if first.Type == tokenizer.AmpersandToken {
-		return p.handleEntity()
+	if events, handled := p.processEscapeOrEntity(first); handled {
+		return events
 	}
 
 	if p.lineStart {
-		for _, marker := range []tokenizer.TokenType{tokenizer.DashToken, tokenizer.StarToken, tokenizer.UnderscoreToken} {
-			matched, waiting := p.checkHorizontalRule(marker)
-			if matched {
-				return []Event{{Type: HorizontalRuleEvent}}
-			}
-			if waiting {
-				return nil
-			}
+		if events, handled := p.processLineStartBlock(first); handled {
+			return events
 		}
 	}
 
-	if p.lineStart && first.Type == tokenizer.HashToken {
+	if events, handled := p.processInlineStart(first); handled {
+		return events
+	}
+
+	if p.lineStart {
+		if events, handled := p.processDeferredLineStart(first); handled {
+			return events
+		}
+	}
+
+	return p.emitTextOrSpecial()
+}
+
+func (p *Parser) processEscapeOrEntity(first tokenizer.Token) ([]Event, bool) {
+	if first.Type == tokenizer.BackslashToken {
+		return p.handleBackslash(), true
+	}
+	if first.Type == tokenizer.AmpersandToken {
+		return p.handleEntity(), true
+	}
+	return nil, false
+}
+
+func (p *Parser) processLineStartBlock(first tokenizer.Token) ([]Event, bool) {
+	for _, marker := range []tokenizer.TokenType{tokenizer.DashToken, tokenizer.StarToken, tokenizer.UnderscoreToken} {
+		matched, waiting := p.checkHorizontalRule(marker)
+		if matched {
+			return []Event{{Type: HorizontalRuleEvent}}, true
+		}
+		if waiting {
+			return nil, true
+		}
+	}
+
+	if first.Type == tokenizer.HashToken {
 		hashCount := 0
 		for hashCount < len(p.buf) && p.buf[hashCount].Type == tokenizer.HashToken {
 			hashCount++
@@ -169,34 +208,34 @@ func (p *Parser) processNormal() []Event {
 			for i := 0; i < hashCount; i++ {
 				events[i] = Event{Type: TextEvent, Value: "#"}
 			}
-			return events
+			return events, true
 		}
-		return p.tryHeader()
+		return p.tryHeader(), true
 	}
 
-	if p.lineStart && first.Type == tokenizer.TextToken && len(p.buf) > 1 {
+	if first.Type == tokenizer.TextToken && len(p.buf) > 1 {
 		if sp := leadingSpaceCount(first.Value); sp >= 1 && sp <= 3 && p.buf[1].Type == tokenizer.HashToken {
 			p.consume(1)
-			return p.tryHeader()
+			return p.tryHeader(), true
 		}
 	}
 
-	if p.lineStart && first.Type == tokenizer.GreaterToken {
-		return p.tryBlockquote()
+	if first.Type == tokenizer.GreaterToken {
+		return p.tryBlockquote(), true
 	}
 
-	if p.lineStart && first.Type == tokenizer.DashToken {
+	if first.Type == tokenizer.DashToken {
 		matched, waiting := p.checkHorizontalRule(tokenizer.DashToken)
 		if matched {
-			return []Event{{Type: HorizontalRuleEvent}}
+			return []Event{{Type: HorizontalRuleEvent}}, true
 		}
 		if waiting {
-			return nil
+			return nil, true
 		}
-		return p.tryBullet()
+		return p.tryBullet(), true
 	}
 
-	if p.lineStart && first.Type == tokenizer.TextToken {
+	if first.Type == tokenizer.TextToken {
 		if prefix, ok := orderedListPrefix(first.Value); ok {
 			p.consume(1)
 			p.lineStart = false
@@ -205,183 +244,104 @@ func (p *Parser) processNormal() []Event {
 			if rest != "" {
 				events = append(events, Event{Type: TextEvent, Value: rest})
 			}
-			return events
+			return events, true
 		}
 	}
 
-	if p.lineStart && first.Type == tokenizer.StarToken {
+	if first.Type == tokenizer.StarToken {
 		matched, waiting := p.checkHorizontalRule(tokenizer.StarToken)
 		if matched {
-			return []Event{{Type: HorizontalRuleEvent}}
+			return []Event{{Type: HorizontalRuleEvent}}, true
 		}
 		if waiting {
-			return nil
+			return nil, true
 		}
-		return p.tryBulletOrBold()
+		return p.tryBulletOrBold(), true
 	}
 
+	return nil, false
+}
+
+func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
 	if first.Type == tokenizer.StarToken && !p.lineStart {
 		matched, waiting := p.checkHorizontalRule(tokenizer.StarToken)
 		if matched {
-			return []Event{{Type: HorizontalRuleEvent}}
+			return []Event{{Type: HorizontalRuleEvent}}, true
 		}
 		if waiting {
-			return nil
+			return nil, true
 		}
 		matched, waiting = p.checkConsecutive(tokenizer.StarToken, 2)
 		if matched {
 			if !hasMatchingCloser(p.buf[2:], tokenizer.StarToken, 2) && hasNewlineIn(p.buf[2:]) {
 				p.consume(2)
 				p.lineStart = false
-				return []Event{{Type: TextEvent, Value: "**"}}
+				return []Event{{Type: TextEvent, Value: "**"}}, true
 			}
 			p.consume(2)
 			p.state = BoldState
 			p.boldOpener = tokenizer.StarToken
-			return []Event{{Type: BoldStartEvent}}
+			return []Event{{Type: BoldStartEvent}}, true
 		}
 		if waiting {
-			return nil
+			return nil, true
 		}
 		if !hasMatchingCloser(p.buf[1:], tokenizer.StarToken, 1) {
 			p.consume(1)
 			p.lineStart = false
-			return []Event{{Type: TextEvent, Value: "*"}}
+			return []Event{{Type: TextEvent, Value: "*"}}, true
 		}
 		p.consume(1)
 		p.state = ItalicState
 		p.italicOpener = tokenizer.StarToken
-		return []Event{{Type: ItalicStartEvent}}
+		return []Event{{Type: ItalicStartEvent}}, true
 	}
 
 	if first.Type == tokenizer.UnderscoreToken {
 		matched, waiting := p.checkHorizontalRule(tokenizer.UnderscoreToken)
 		if matched {
-			return []Event{{Type: HorizontalRuleEvent}}
+			return []Event{{Type: HorizontalRuleEvent}}, true
 		}
 		if waiting {
-			return nil
+			return nil, true
 		}
 		matched, waiting = p.checkConsecutive(tokenizer.UnderscoreToken, 2)
 		if matched {
 			if !hasMatchingCloser(p.buf[2:], tokenizer.UnderscoreToken, 2) && hasNewlineIn(p.buf[2:]) {
 				p.consume(2)
 				p.lineStart = false
-				return []Event{{Type: TextEvent, Value: "__"}}
+				return []Event{{Type: TextEvent, Value: "__"}}, true
 			}
 			p.consume(2)
 			p.state = BoldState
 			p.boldOpener = tokenizer.UnderscoreToken
-			return []Event{{Type: BoldStartEvent}}
+			return []Event{{Type: BoldStartEvent}}, true
 		}
 		if waiting {
-			return nil
+			return nil, true
 		}
 		if !hasMatchingCloser(p.buf[1:], tokenizer.UnderscoreToken, 1) {
 			p.consume(1)
 			p.lineStart = false
-			return []Event{{Type: TextEvent, Value: "_"}}
+			return []Event{{Type: TextEvent, Value: "_"}}, true
 		}
 		if !isLeftFlanking(p.buf) {
 			p.consume(1)
 			p.lineStart = false
-			return []Event{{Type: TextEvent, Value: "_"}}
+			return []Event{{Type: TextEvent, Value: "_"}}, true
 		}
 		p.consume(1)
 		p.state = ItalicState
 		p.italicOpener = tokenizer.UnderscoreToken
-		return []Event{{Type: ItalicStartEvent}}
+		return []Event{{Type: ItalicStartEvent}}, true
 	}
 
 	if first.Type == tokenizer.BacktickToken {
-		if p.lineStart {
-			matched, waiting := p.checkConsecutive(tokenizer.BacktickToken, 3)
-			if matched {
-				n := p.countConsecutive(tokenizer.BacktickToken)
-				if n == len(p.buf) && !p.eof {
-					return nil
-				}
-				p.consume(n)
-				p.state = CodeBlockState
-				p.fenceLen = n
-				p.fenceChar = tokenizer.BacktickToken
-				p.codeBlockFirst = true
-				return []Event{{Type: CodeBlockStartEvent}}
-			}
-			if waiting {
-				return nil
-			}
-		}
-		n := p.countConsecutive(tokenizer.BacktickToken)
-		if n == len(p.buf) && !p.eof {
-			return nil
-		}
-		if n == 1 && !hasMatchingCloser(p.buf[n:], tokenizer.BacktickToken, n) {
-			p.consume(n)
-			p.lineStart = false
-			var events []Event
-			for i := 0; i < n; i++ {
-				events = append(events, Event{Type: TextEvent, Value: "`"})
-			}
-			return events
-		}
-		p.consume(n)
-		p.state = InlineCodeState
-		p.fenceLen = n
-		return []Event{{Type: InlineCodeStartEvent}}
+		return p.processBacktickStart()
 	}
 
 	if first.Type == tokenizer.TildeToken {
-		if p.lineStart {
-			matched, waiting := p.checkConsecutive(tokenizer.TildeToken, 3)
-			if matched {
-				n := p.countConsecutive(tokenizer.TildeToken)
-				if n == len(p.buf) && !p.eof {
-					return nil
-				}
-				p.consume(n)
-				p.state = CodeBlockState
-				p.fenceLen = n
-				p.fenceChar = tokenizer.TildeToken
-				p.codeBlockFirst = true
-				return []Event{{Type: CodeBlockStartEvent}}
-			}
-			if waiting {
-				return nil
-			}
-		}
-		matched, waiting := p.checkConsecutive(tokenizer.TildeToken, 2)
-		if matched {
-			p.consume(2)
-			p.state = StrikethroughState
-			return []Event{{Type: StrikethroughStartEvent}}
-		}
-		if waiting {
-			return nil
-		}
-	}
-
-	if p.lineStart && first.Type == tokenizer.PipeToken {
-		return p.tryTableHeader()
-	}
-
-	if p.lineStart {
-		if ok, remaining := p.equivIndent(); ok {
-			p.state = IndentedCodeBlockState
-			p.lineStart = false
-			events := []Event{{Type: CodeBlockStartEvent}}
-			if remaining != "" {
-				events = append(events, Event{Type: TextEvent, Value: remaining})
-			}
-			return events
-		}
-	}
-
-	if p.lineStart && first.Type == tokenizer.TextToken {
-		if p.hasNewline() {
-			p.state = SetextPendingState
-			return nil
-		}
+		return p.processTildeStart()
 	}
 
 	if first.Type == tokenizer.LeftBracketToken && p.prevChar != '!' {
@@ -389,10 +349,104 @@ func (p *Parser) processNormal() []Event {
 		p.state = LinkTextState
 		p.linkBuf = nil
 		p.linkBracketConsumed = false
-		return nil
+		return nil, true
 	}
 
-	return p.emitTextOrSpecial()
+	return nil, false
+}
+
+func (p *Parser) processBacktickStart() ([]Event, bool) {
+	if p.lineStart {
+		matched, waiting := p.checkConsecutive(tokenizer.BacktickToken, 3)
+		if matched {
+			n := p.countConsecutive(tokenizer.BacktickToken)
+			if n == len(p.buf) && !p.eof {
+				return nil, true
+			}
+			p.consume(n)
+			p.state = CodeBlockState
+			p.fenceLen = n
+			p.fenceChar = tokenizer.BacktickToken
+			p.codeBlockFirst = true
+			return []Event{{Type: CodeBlockStartEvent}}, true
+		}
+		if waiting {
+			return nil, true
+		}
+	}
+	n := p.countConsecutive(tokenizer.BacktickToken)
+	if n == len(p.buf) && !p.eof {
+		return nil, true
+	}
+	if n == 1 && !hasMatchingCloser(p.buf[n:], tokenizer.BacktickToken, n) {
+		p.consume(n)
+		p.lineStart = false
+		var events []Event
+		for i := 0; i < n; i++ {
+			events = append(events, Event{Type: TextEvent, Value: "`"})
+		}
+		return events, true
+	}
+	p.consume(n)
+	p.state = InlineCodeState
+	p.fenceLen = n
+	return []Event{{Type: InlineCodeStartEvent}}, true
+}
+
+func (p *Parser) processTildeStart() ([]Event, bool) {
+	if p.lineStart {
+		matched, waiting := p.checkConsecutive(tokenizer.TildeToken, 3)
+		if matched {
+			n := p.countConsecutive(tokenizer.TildeToken)
+			if n == len(p.buf) && !p.eof {
+				return nil, true
+			}
+			p.consume(n)
+			p.state = CodeBlockState
+			p.fenceLen = n
+			p.fenceChar = tokenizer.TildeToken
+			p.codeBlockFirst = true
+			return []Event{{Type: CodeBlockStartEvent}}, true
+		}
+		if waiting {
+			return nil, true
+		}
+	}
+	matched, waiting := p.checkConsecutive(tokenizer.TildeToken, 2)
+	if matched {
+		p.consume(2)
+		p.state = StrikethroughState
+		return []Event{{Type: StrikethroughStartEvent}}, true
+	}
+	if waiting {
+		return nil, true
+	}
+	return nil, false
+}
+
+func (p *Parser) processDeferredLineStart(first tokenizer.Token) ([]Event, bool) {
+	if first.Type == tokenizer.PipeToken {
+		return p.tryTableHeader(), true
+	}
+
+	if ok, remaining := p.equivIndent(); ok {
+		p.state = IndentedCodeBlockState
+		p.lineStart = false
+		events := []Event{{Type: CodeBlockStartEvent}}
+		if remaining != "" {
+			events = append(events, Event{Type: TextEvent, Value: remaining})
+		}
+		return events, true
+	}
+
+	if first.Type == tokenizer.TextToken {
+		if p.hasNewline() {
+			p.state = SetextPendingState
+			return nil, true
+		}
+	}
+
+	return nil, false
 }
 
 func (p *Parser) emitTextOrSpecial() []Event {

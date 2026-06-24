@@ -85,51 +85,26 @@ func (p *Parser) rejectTable() []Event {
 }
 
 func (p *Parser) extractTableCells() ([]string, bool) {
-	if len(p.buf) == 0 || p.buf[0].Type != tokenizer.PipeToken {
-		return nil, false
-	}
-	hadPipe := true
-	p.consume(1)
-	var cells []string
-	var current strings.Builder
-	backtickDepth := 0
-
-	for len(p.buf) > 0 {
-		tok := p.buf[0]
-		if tok.Type == tokenizer.NewlineToken {
-			p.consume(1)
-			cells = append(cells, strings.TrimSpace(current.String()))
-			for len(cells) > 0 && cells[len(cells)-1] == "" {
-				cells = cells[:len(cells)-1]
-			}
-			return cells, hadPipe
-		}
-		if tok.Type == tokenizer.BacktickToken {
-			backtickDepth = 1 - backtickDepth
-			p.consume(1)
-			current.WriteString(tok.Value)
-			continue
-		}
-		if backtickDepth == 0 && tok.Type == tokenizer.PipeToken {
-			p.consume(1)
-			cells = append(cells, strings.TrimSpace(current.String()))
-			current.Reset()
-			continue
-		}
-		p.consume(1)
-		current.WriteString(tok.Value)
-	}
-	return nil, false
+	return p.readTableCells(true, true)
 }
 
 func (p *Parser) flushBodyRow() ([]string, bool) {
+	return p.readTableCells(false, false)
+}
+
+func (p *Parser) readTableCells(requireLeadingPipe, requireNewline bool) ([]string, bool) {
 	if len(p.buf) == 0 {
 		return nil, false
 	}
+
 	hadPipe := p.buf[0].Type == tokenizer.PipeToken
+	if requireLeadingPipe && !hadPipe {
+		return nil, false
+	}
 	if hadPipe {
 		p.consume(1)
 	}
+
 	var cells []string
 	var current strings.Builder
 	backtickDepth := 0
@@ -138,11 +113,7 @@ func (p *Parser) flushBodyRow() ([]string, bool) {
 		tok := p.buf[0]
 		if tok.Type == tokenizer.NewlineToken {
 			p.consume(1)
-			cells = append(cells, strings.TrimSpace(current.String()))
-			for len(cells) > 0 && cells[len(cells)-1] == "" {
-				cells = cells[:len(cells)-1]
-			}
-			return cells, hadPipe
+			return normalizeTableCells(append(cells, strings.TrimSpace(current.String()))), hadPipe
 		}
 		if tok.Type == tokenizer.BacktickToken {
 			backtickDepth = 1 - backtickDepth
@@ -159,11 +130,18 @@ func (p *Parser) flushBodyRow() ([]string, bool) {
 		p.consume(1)
 		current.WriteString(tok.Value)
 	}
-	cells = append(cells, strings.TrimSpace(current.String()))
+
+	if requireNewline {
+		return nil, false
+	}
+	return normalizeTableCells(append(cells, strings.TrimSpace(current.String()))), hadPipe
+}
+
+func normalizeTableCells(cells []string) []string {
 	for len(cells) > 0 && cells[len(cells)-1] == "" {
 		cells = cells[:len(cells)-1]
 	}
-	return cells, hadPipe
+	return cells
 }
 
 func parseSeparatorAligns(cells []string) (aligns []int, ok bool) {

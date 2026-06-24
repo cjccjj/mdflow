@@ -110,7 +110,7 @@ func (p *Parser) handleNumericEntity() []Event {
 	p.consume(1)
 
 	if rest != "" {
-		p.buf = append([]tokenizer.Token{{Type: tokenizer.TextToken, Value: rest}}, p.buf...)
+		p.prependTokens(tokenizer.Token{Type: tokenizer.TextToken, Value: rest})
 	}
 
 	return []Event{{Type: TextEvent, Value: decoded}}
@@ -124,7 +124,7 @@ func (p *Parser) handleNamedEntity() []Event {
 	fullValue := tok.Value
 	semiIdx := strings.IndexByte(fullValue, ';')
 	if semiIdx < 0 {
-		p.buf = append([]tokenizer.Token{tok}, p.buf...)
+		p.prependTokens(tok)
 		return []Event{{Type: TextEvent, Value: "&"}}
 	}
 
@@ -136,7 +136,7 @@ func (p *Parser) handleNamedEntity() []Event {
 
 	for _, r := range name {
 		if !isAlphaNum(byte(r)) {
-			p.buf = append([]tokenizer.Token{tok}, p.buf...)
+			p.prependTokens(tok)
 			return []Event{{Type: TextEvent, Value: "&"}}
 		}
 	}
@@ -144,12 +144,12 @@ func (p *Parser) handleNamedEntity() []Event {
 	entityStr := "&" + name + ";"
 	decoded := html.UnescapeString(entityStr)
 	if decoded == entityStr {
-		p.buf = append([]tokenizer.Token{tok}, p.buf...)
+		p.prependTokens(tok)
 		return []Event{{Type: TextEvent, Value: "&"}}
 	}
 
 	if rest != "" {
-		p.buf = append([]tokenizer.Token{{Type: tokenizer.TextToken, Value: rest}}, p.buf...)
+		p.prependTokens(tokenizer.Token{Type: tokenizer.TextToken, Value: rest})
 	}
 
 	return []Event{{Type: TextEvent, Value: decoded}}
@@ -233,5 +233,3 @@ func isHexDigit(b byte) bool {
 func isAlphaNum(b byte) bool {
 	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
 }
-
-

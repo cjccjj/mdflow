@@ -249,6 +249,25 @@ func stripTrailingWhitespaceTokens(tokens []tokenizer.Token) []tokenizer.Token {
 	return tokens
 }
 
+func (p *Parser) appendTokens(tokens []tokenizer.Token) {
+	p.buf = append(p.buf, tokens...)
+}
+
+func (p *Parser) bufferedLen() int {
+	return len(p.buf)
+}
+
+func (p *Parser) hasBufferedTokens() bool {
+	return len(p.buf) > 0
+}
+
+func (p *Parser) prependTokens(tokens ...tokenizer.Token) {
+	if len(tokens) == 0 {
+		return
+	}
+	p.buf = append(append([]tokenizer.Token(nil), tokens...), p.buf...)
+}
+
 func (p *Parser) consume(n int) {
 	if n > len(p.buf) {
 		n = len(p.buf)

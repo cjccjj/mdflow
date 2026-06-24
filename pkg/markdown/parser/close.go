@@ -4,69 +4,30 @@ import (
 	"strings"
 )
 
+type finalizeMode int
+
+const (
+	finalizeClose finalizeMode = iota
+	finalizeFlush
+	finalizeSafe
+)
+
 func (p *Parser) CloseStates() []Event {
-	var out []Event
-	switch p.state {
-	case HeaderState:
-		out = append(out, Event{Type: HeaderEndEvent})
-	case BoldState:
-		out = append(out, Event{Type: BoldEndEvent})
-	case ItalicState:
-		out = append(out, Event{Type: ItalicEndEvent})
-	case StrikethroughState:
-		out = append(out, Event{Type: StrikethroughEndEvent})
-	case InlineCodeState:
-		out = append(out, Event{Type: InlineCodeEndEvent})
-	case CodeBlockState:
-		out = append(out, Event{Type: CodeBlockEndEvent})
-	case IndentedCodeBlockState:
-		out = append(out, Event{Type: CodeBlockEndEvent})
-	case BlockquoteState:
-		out = append(out, Event{Type: BlockquoteEndEvent})
-	case TableBodyState:
-		cells, ok := p.flushBodyRow()
-		if ok {
-			out = append(out, Event{Type: TableRowEvent, Cells: cells})
-		}
-		out = append(out, Event{Type: TableEndEvent})
-	case TablePendingState:
-		if len(p.tableHeaderBuf) > 0 {
-			out = append(out, Event{Type: TextEvent, Value: "| " + strings.Join(p.tableHeaderBuf, " | ") + " |"})
-			out = append(out, Event{Type: NewlineEvent})
-		}
-		p.tableHeaderBuf = nil
-	case SetextPendingState:
-		out = append(out, p.flushSetext()...)
-	case LinkTextState, LinkURLState:
-		out = append(out, p.flushLinkAsText()...)
-	}
-	return out
+	return p.finalizeState(finalizeClose)
 }
 
 func (p *Parser) Flush() []Event {
 	var out []Event
+
 	if p.state == TableBodyState {
-		cells, ok := p.flushBodyRow()
-		if ok {
-			out = append(out, Event{Type: TableRowEvent, Cells: cells})
-		}
-		out = append(out, Event{Type: TableEndEvent})
-		p.state = NormalState
-		return out
+		return p.finalizeState(finalizeFlush)
 	}
-	if p.state == TablePendingState && len(p.tableHeaderBuf) > 0 {
-		out = append(out, Event{Type: TextEvent, Value: "| " + strings.Join(p.tableHeaderBuf, " | ") + " |"})
-		out = append(out, Event{Type: NewlineEvent})
-		p.tableHeaderBuf = nil
-		p.state = NormalState
+
+	switch p.state {
+	case TablePendingState, SetextPendingState, LinkTextState, LinkURLState:
+		out = append(out, p.finalizeState(finalizeFlush)...)
 	}
-	if p.state == SetextPendingState {
-		out = append(out, p.flushSetext()...)
-		p.state = NormalState
-	}
-	if p.state == LinkTextState || p.state == LinkURLState {
-		out = append(out, p.flushLinkAsText()...)
-	}
+
 	if len(p.buf) > 0 {
 		p.eof = true
 		out = append(out, p.process()...)
@@ -80,44 +41,73 @@ func (p *Parser) Flush() []Event {
 }
 
 func (p *Parser) safeFlush() []Event {
+	out := p.finalizeState(finalizeSafe)
+	for _, tok := range p.buf {
+		out = append(out, Event{Type: TextEvent, Value: tok.Value})
+	}
+	p.Reset()
+	return out
+}
+
+func (p *Parser) finalizeState(mode finalizeMode) []Event {
 	var out []Event
+
 	switch p.state {
 	case HeaderState:
-		out = append(out, Event{Type: HeaderEndEvent})
+		if mode != finalizeFlush {
+			out = append(out, Event{Type: HeaderEndEvent})
+		}
 	case BoldState:
-		out = append(out, Event{Type: BoldEndEvent})
+		if mode != finalizeFlush {
+			out = append(out, Event{Type: BoldEndEvent})
+		}
 	case ItalicState:
-		out = append(out, Event{Type: ItalicEndEvent})
+		if mode != finalizeFlush {
+			out = append(out, Event{Type: ItalicEndEvent})
+		}
 	case StrikethroughState:
-		out = append(out, Event{Type: StrikethroughEndEvent})
+		if mode != finalizeFlush {
+			out = append(out, Event{Type: StrikethroughEndEvent})
+		}
 	case InlineCodeState:
-		out = append(out, Event{Type: InlineCodeEndEvent})
-	case CodeBlockState:
-		out = append(out, Event{Type: CodeBlockEndEvent})
-	case IndentedCodeBlockState:
-		out = append(out, Event{Type: CodeBlockEndEvent})
+		if mode != finalizeFlush {
+			out = append(out, Event{Type: InlineCodeEndEvent})
+		}
+	case CodeBlockState, IndentedCodeBlockState:
+		if mode != finalizeFlush {
+			out = append(out, Event{Type: CodeBlockEndEvent})
+		}
 	case BlockquoteState:
-		out = append(out, Event{Type: BlockquoteEndEvent})
+		if mode != finalizeFlush {
+			out = append(out, Event{Type: BlockquoteEndEvent})
+		}
 	case TableBodyState:
 		cells, ok := p.flushBodyRow()
 		if ok {
 			out = append(out, Event{Type: TableRowEvent, Cells: cells})
 		}
 		out = append(out, Event{Type: TableEndEvent})
+		if mode == finalizeFlush {
+			p.state = NormalState
+		}
 	case TablePendingState:
 		if len(p.tableHeaderBuf) > 0 {
 			out = append(out, Event{Type: TextEvent, Value: "| " + strings.Join(p.tableHeaderBuf, " | ") + " |"})
 			out = append(out, Event{Type: NewlineEvent})
 		}
+		p.tableHeaderBuf = nil
+		if mode == finalizeFlush {
+			p.state = NormalState
+		}
 	case SetextPendingState:
 		out = append(out, p.flushSetext()...)
+		if mode == finalizeFlush {
+			p.state = NormalState
+		}
 	case LinkTextState, LinkURLState:
 		out = append(out, p.flushLinkAsText()...)
 	}
-	for _, tok := range p.buf {
-		out = append(out, Event{Type: TextEvent, Value: tok.Value})
-	}
-	p.Reset()
+
 	return out
 }
 
