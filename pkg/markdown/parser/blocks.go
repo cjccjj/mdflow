@@ -7,55 +7,49 @@ import (
 )
 
 func (p *Parser) tryHeader() []Event {
-	matched, waiting := p.checkConsecutive(tokenizer.HashToken, 1)
-	if waiting || (matched && len(p.buf) < 2) {
-		return nil
+	level := 0
+	for level < len(p.buf) && p.buf[level].Type == tokenizer.HashToken {
+		level++
 	}
-	if !matched {
+
+	if level == 0 || level > 6 {
 		return nil
 	}
 
-	level := 0
-	for i, tok := range p.buf {
-		if tok.Type == tokenizer.HashToken {
-			level++
+	if level >= len(p.buf) {
+		return nil
+	}
+
+	delim := p.buf[level]
+
+	if delim.Type == tokenizer.NewlineToken {
+		p.consume(level)
+		p.headerLvl = level
+		p.state = HeaderState
+		return []Event{{Type: HeaderStartEvent, Level: level}}
+	}
+
+	if delim.Type == tokenizer.TabToken {
+		p.consume(level + 1)
+		p.headerLvl = level
+		p.state = HeaderState
+		p.contentIndent = tabRemainingEquiv(level)
+		return []Event{{Type: HeaderStartEvent, Level: level}}
+	}
+
+	if delim.Type == tokenizer.TextToken && len(delim.Value) > 0 && delim.Value[0] == ' ' {
+		p.consume(level)
+		if len(delim.Value) == 1 {
+			p.consume(1)
 		} else {
-			if i > 0 && hasStructuralWhitespace(tok) {
-				p.headerLvl = level
-				p.consume(i + 1)
-				p.state = HeaderState
-				events := []Event{{Type: HeaderStartEvent, Level: level}}
-				if tok.Type == tokenizer.TabToken {
-					p.contentIndent = tabRemainingEquiv(level)
-				} else {
-					trimmed := strings.TrimPrefix(tok.Value, " ")
-					if trimmed != "" {
-						events = append(events, Event{Type: TextEvent, Value: trimmed})
-					}
-				}
-				return events
-			}
-			return p.emitHashAsText(level, i)
+			p.buf[0] = tokenizer.Token{Type: tokenizer.TextToken, Value: delim.Value[1:]}
 		}
-		if level > 6 {
-			remaining := i + 1
-			if remaining < len(p.buf) && hasStructuralWhitespace(p.buf[remaining]) {
-				return p.emitHashAsText(level, remaining+1)
-			}
-			return p.emitHashAsText(level, remaining)
-		}
+		p.headerLvl = level
+		p.state = HeaderState
+		return []Event{{Type: HeaderStartEvent, Level: level}}
 	}
 
 	return nil
-}
-
-func (p *Parser) emitHashAsText(level, idx int) []Event {
-	p.consume(idx)
-	var events []Event
-	for i := 0; i < level; i++ {
-		events = append(events, Event{Type: TextEvent, Value: "#"})
-	}
-	return events
 }
 
 func (p *Parser) tryBullet() []Event {
@@ -130,23 +124,74 @@ func (p *Parser) tryBulletOrBold() []Event {
 }
 
 func (p *Parser) processHeader() []Event {
-	var events []Event
+	if !p.hasNewline() {
+		return nil
+	}
+
+	var content []tokenizer.Token
 	for len(p.buf) > 0 {
 		tok := p.buf[0]
-		switch tok.Type {
-		case tokenizer.NewlineToken:
+		if tok.Type == tokenizer.NewlineToken {
 			p.consume(1)
-			p.state = NormalState
-			p.lineStart = true
-			events = append(events, Event{Type: HeaderEndEvent})
-			events = append(events, Event{Type: NewlineEvent})
-			return events
-		default:
-			p.consume(1)
-			events = append(events, Event{Type: TextEvent, Value: tok.Value})
+			break
 		}
+		p.consume(1)
+		content = append(content, tok)
 	}
+
+	content = stripLeadingWhitespaceTokens(content)
+	content = stripTrailingWhitespaceTokens(content)
+	content = stripClosingHashSequence(content)
+	content = stripTrailingWhitespaceTokens(content)
+
+	var events []Event
+	if len(content) > 0 {
+		events = append(events, p.parseInlineLine(content)...)
+	}
+	events = append(events, Event{Type: HeaderEndEvent})
+
+	p.state = NormalState
+	p.lineStart = true
+	events = append(events, Event{Type: NewlineEvent})
 	return events
+}
+
+func stripClosingHashSequence(tokens []tokenizer.Token) []tokenizer.Token {
+	if len(tokens) == 0 {
+		return tokens
+	}
+
+	hashCount := 0
+	i := len(tokens) - 1
+	for i >= 0 && tokens[i].Type == tokenizer.HashToken {
+		if i > 0 && tokens[i-1].Type == tokenizer.BackslashToken {
+			break
+		}
+		hashCount++
+		i--
+	}
+
+	if hashCount == 0 {
+		return tokens
+	}
+
+	if i < 0 {
+		return nil
+	}
+
+	tok := tokens[i]
+	if tok.Type == tokenizer.TabToken {
+		return tokens[:i]
+	}
+	if tok.Type == tokenizer.TextToken && len(tok.Value) > 0 && tok.Value[len(tok.Value)-1] == ' ' {
+		if len(tok.Value) == 1 {
+			return tokens[:i]
+		}
+		tokens[i] = tokenizer.Token{Type: tokenizer.TextToken, Value: tok.Value[:len(tok.Value)-1]}
+		return tokens[:i+1]
+	}
+
+	return tokens
 }
 
 func (p *Parser) processCodeBlock() []Event {

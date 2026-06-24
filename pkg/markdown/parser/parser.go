@@ -158,7 +158,27 @@ func (p *Parser) processNormal() []Event {
 	}
 
 	if p.lineStart && first.Type == tokenizer.HashToken {
+		hashCount := 0
+		for hashCount < len(p.buf) && p.buf[hashCount].Type == tokenizer.HashToken {
+			hashCount++
+		}
+		if hashCount > 6 {
+			p.consume(hashCount)
+			p.lineStart = false
+			events := make([]Event, hashCount)
+			for i := 0; i < hashCount; i++ {
+				events[i] = Event{Type: TextEvent, Value: "#"}
+			}
+			return events
+		}
 		return p.tryHeader()
+	}
+
+	if p.lineStart && first.Type == tokenizer.TextToken && len(p.buf) > 1 {
+		if sp := leadingSpaceCount(first.Value); sp >= 1 && sp <= 3 && p.buf[1].Type == tokenizer.HashToken {
+			p.consume(1)
+			return p.tryHeader()
+		}
 	}
 
 	if p.lineStart && first.Type == tokenizer.GreaterToken {

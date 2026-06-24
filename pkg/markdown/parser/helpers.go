@@ -193,6 +193,62 @@ func (p *Parser) isBlockLevel(tt tokenizer.TokenType) bool {
 	return false
 }
 
+func leadingSpaceCount(s string) int {
+	n := 0
+	for n < len(s) && s[n] == ' ' {
+		n++
+	}
+	return n
+}
+
+func stripLeadingWhitespaceTokens(tokens []tokenizer.Token) []tokenizer.Token {
+	for len(tokens) > 0 {
+		tok := tokens[0]
+		if tok.Type == tokenizer.TabToken {
+			tokens = tokens[1:]
+		} else if tok.Type == tokenizer.TextToken {
+			trimmed := strings.TrimLeft(tok.Value, " \t")
+			if trimmed != tok.Value {
+				if trimmed == "" {
+					tokens = tokens[1:]
+				} else {
+					tokens[0] = tokenizer.Token{Type: tokenizer.TextToken, Value: trimmed}
+					return tokens
+				}
+			} else {
+				break
+			}
+		} else {
+			break
+		}
+	}
+	return tokens
+}
+
+func stripTrailingWhitespaceTokens(tokens []tokenizer.Token) []tokenizer.Token {
+	for len(tokens) > 0 {
+		tok := tokens[len(tokens)-1]
+		if tok.Type == tokenizer.TabToken {
+			tokens = tokens[:len(tokens)-1]
+		} else if tok.Type == tokenizer.TextToken {
+			trimmed := strings.TrimRight(tok.Value, " \t")
+			if trimmed != tok.Value {
+				if trimmed == "" {
+					tokens = tokens[:len(tokens)-1]
+				} else {
+					tokens[len(tokens)-1] = tokenizer.Token{Type: tokenizer.TextToken, Value: trimmed}
+					return tokens
+				}
+			} else {
+				break
+			}
+		} else {
+			break
+		}
+	}
+	return tokens
+}
+
 func (p *Parser) consume(n int) {
 	if n > len(p.buf) {
 		n = len(p.buf)
