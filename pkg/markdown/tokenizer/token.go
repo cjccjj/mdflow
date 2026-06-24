@@ -19,6 +19,7 @@ const (
 	LeftParenToken
 	RightParenToken
 	BackslashToken
+	AmpersandToken
 	EOFToken
 )
 
@@ -61,6 +62,8 @@ func (t TokenType) String() string {
 		return "RightParen"
 	case BackslashToken:
 		return "Backslash"
+	case AmpersandToken:
+		return "Ampersand"
 	case EOFToken:
 		return "EOF"
 	default:

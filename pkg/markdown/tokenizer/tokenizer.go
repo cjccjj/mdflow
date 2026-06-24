@@ -68,6 +68,9 @@ func Tokenize(input []byte) []Token {
 		case ']':
 			flushText()
 			tokens = append(tokens, Token{Type: RightBracketToken, Value: "]"})
+		case '&':
+			flushText()
+			tokens = append(tokens, Token{Type: AmpersandToken, Value: "&"})
 		case '(':
 			flushText()
 			tokens = append(tokens, Token{Type: LeftParenToken, Value: "("})

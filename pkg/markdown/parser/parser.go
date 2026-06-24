@@ -141,6 +141,10 @@ func (p *Parser) processNormal() []Event {
 		return p.handleBackslash()
 	}
 
+	if first.Type == tokenizer.AmpersandToken {
+		return p.handleEntity()
+	}
+
 	if p.lineStart && first.Type == tokenizer.HashToken {
 		return p.tryHeader()
 	}
@@ -414,6 +418,9 @@ func (p *Parser) bufferHasPattern() bool {
 		return true
 	}
 	if p.buf[0].Type == tokenizer.BackslashToken {
+		return true
+	}
+	if p.buf[0].Type == tokenizer.AmpersandToken {
 		return true
 	}
 	return false

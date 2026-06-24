@@ -193,19 +193,21 @@ func (p *Parser) processLinkURL() []Event {
 		}
 		if tok.Type == tokenizer.RightParenToken {
 			p.consume(1)
-			var urlStr strings.Builder
+			var urlBuilder strings.Builder
 			for _, t := range p.linkURLBuf {
-				urlStr.WriteString(t.Value)
+				urlBuilder.WriteString(t.Value)
 			}
-			var textStr strings.Builder
+			var textBuilder strings.Builder
 			for _, t := range p.linkBuf {
-				textStr.WriteString(t.Value)
+				textBuilder.WriteString(t.Value)
 			}
+			urlStr := resolveEntities(urlBuilder.String())
+			textStr := resolveEntities(textBuilder.String())
 			p.linkBuf = nil
 			p.linkURLBuf = nil
 			p.linkBracketConsumed = false
 			p.state = NormalState
-			return []Event{{Type: LinkEvent, Value: textStr.String(), URL: urlStr.String()}}
+			return []Event{{Type: LinkEvent, Value: textStr, URL: urlStr}}
 		}
 		if tok.Type == tokenizer.BackslashToken {
 			p.consume(1)
@@ -235,13 +237,13 @@ func (p *Parser) flushLinkAsText() []Event {
 	var events []Event
 	events = append(events, Event{Type: TextEvent, Value: "["})
 	for _, tok := range p.linkBuf {
-		events = append(events, Event{Type: TextEvent, Value: tok.Value})
+		events = append(events, Event{Type: TextEvent, Value: resolveEntities(tok.Value)})
 	}
 	events = append(events, Event{Type: TextEvent, Value: "]"})
 	if p.state == LinkURLState {
 		events = append(events, Event{Type: TextEvent, Value: "("})
 		for _, tok := range p.linkURLBuf {
-			events = append(events, Event{Type: TextEvent, Value: tok.Value})
+			events = append(events, Event{Type: TextEvent, Value: resolveEntities(tok.Value)})
 		}
 		p.linkURLBuf = nil
 	}

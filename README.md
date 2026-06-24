@@ -53,11 +53,11 @@ r.Close()
 - Terminal width wrapping, syntax highlighting in code blocks
 
 *Deferred / not practical for streaming:*
-- Link reference definitions (4.7), HTML blocks (4.6), raw HTML (6.6), entity references (2.5), nested lists (5.3), full emphasis algorithm (6.2), autolinks (6.5), images (6.4)
+- Link reference definitions (4.7), HTML blocks (4.6), raw HTML (6.6), nested lists (5.3), full emphasis algorithm (6.2), autolinks (6.5), images (6.4)
 
 ## Compliance
 
-mdflow aims to cover CommonMark 0.31.2 and commonly-used GFM extensions. Coverage: ~70% of spec sections supported or partially supported. Streaming architecture means some features (reference links, nested structures) are deliberately omitted or simplified.
+mdflow aims to cover CommonMark 0.31.2 and commonly-used GFM extensions. Coverage: ~72% of spec sections supported or partially supported. Streaming architecture means some features (reference links, nested structures) are deliberately omitted or simplified.
 
 ## API
 
