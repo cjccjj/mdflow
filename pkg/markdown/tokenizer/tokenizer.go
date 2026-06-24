@@ -11,21 +11,11 @@ func Tokenize(input []byte) []Token {
 		}
 	}
 
-	isASCIIPunct := func(b byte) bool {
-		return (b >= 0x21 && b <= 0x2F) ||
-			(b >= 0x3A && b <= 0x40) ||
-			(b >= 0x5B && b <= 0x60) ||
-			(b >= 0x7B && b <= 0x7E)
-	}
-
 	for i := 0; i < len(input); i++ {
 		b := input[i]
 		switch b {
 		case '\\':
-			if i+1 < len(input) && isASCIIPunct(input[i+1]) {
-				i++
-				textBuf = append(textBuf, input[i])
-			} else if i+1 < len(input) && (input[i+1] == '\n' || input[i+1] == '\r') {
+			if i+1 < len(input) && (input[i+1] == '\n' || input[i+1] == '\r') {
 				i++
 				if input[i] == '\r' && i+1 < len(input) && input[i+1] == '\n' {
 					i++
@@ -33,7 +23,8 @@ func Tokenize(input []byte) []Token {
 				flushText()
 				tokens = append(tokens, Token{Type: NewlineToken, Value: "\n"})
 			} else {
-				textBuf = append(textBuf, b)
+				flushText()
+				tokens = append(tokens, Token{Type: BackslashToken, Value: "\\"})
 			}
 		case '\n':
 			flushText()

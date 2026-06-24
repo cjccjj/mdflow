@@ -207,6 +207,24 @@ func (p *Parser) processLinkURL() []Event {
 			p.state = NormalState
 			return []Event{{Type: LinkEvent, Value: textStr.String(), URL: urlStr.String()}}
 		}
+		if tok.Type == tokenizer.BackslashToken {
+			p.consume(1)
+			if len(p.buf) > 0 {
+				next := p.buf[0]
+				if len(next.Value) > 0 && isASCIIPunctByte(next.Value[0]) {
+					escaped := next.Value[:1]
+					if len(next.Value) > 1 {
+						p.buf[0].Value = next.Value[1:]
+					} else {
+						p.consume(1)
+					}
+					p.linkURLBuf = append(p.linkURLBuf, tokenizer.Token{Type: tokenizer.TextToken, Value: escaped})
+					continue
+				}
+			}
+			p.linkURLBuf = append(p.linkURLBuf, tokenizer.Token{Type: tokenizer.TextToken, Value: "\\"})
+			continue
+		}
 		p.consume(1)
 		p.linkURLBuf = append(p.linkURLBuf, tok)
 	}

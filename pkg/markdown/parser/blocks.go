@@ -146,6 +146,16 @@ func (p *Parser) processHeader() []Event {
 
 func (p *Parser) processCodeBlock() []Event {
 	var events []Event
+	var infoBuf strings.Builder
+	flushInfo := func() {
+		if infoBuf.Len() > 0 {
+			lang := strings.TrimSpace(infoBuf.String())
+			if lang != "" {
+				events = append(events, Event{Type: CodeBlockLangEvent, Value: lang})
+			}
+			infoBuf.Reset()
+		}
+	}
 	for len(p.buf) > 0 {
 		if p.lineStart && p.buf[0].Type == p.fenceChar {
 			matched, waiting := p.checkConsecutive(p.fenceChar, p.fenceLen)
@@ -159,6 +169,7 @@ func (p *Parser) processCodeBlock() []Event {
 				p.fenceLen = 0
 				p.fenceChar = 0
 				p.codeBlockFirst = false
+				flushInfo()
 				events = append(events, Event{Type: CodeBlockEndEvent})
 				return events
 			}
@@ -169,12 +180,34 @@ func (p *Parser) processCodeBlock() []Event {
 		tok := p.buf[0]
 		p.consume(1)
 		if tok.Type == tokenizer.NewlineToken {
-			p.codeBlockFirst = false
+			if p.codeBlockFirst {
+				flushInfo()
+				p.codeBlockFirst = false
+			}
 			p.lineStart = true
 			events = append(events, Event{Type: NewlineEvent})
-		} else if tok.Type == tokenizer.TextToken && p.codeBlockFirst && strings.TrimSpace(tok.Value) != "" {
+		} else if p.codeBlockFirst {
+			if tok.Type == tokenizer.BackslashToken && len(p.buf) > 0 {
+				next := p.buf[0]
+				if len(next.Value) > 0 && isASCIIPunctByte(next.Value[0]) {
+					p.consume(1)
+					escaped := next.Value[:1]
+					if len(next.Value) > 1 {
+						p.buf = append([]tokenizer.Token{{Type: tokenizer.TextToken, Value: next.Value[1:]}}, p.buf...)
+					}
+					infoBuf.WriteString(escaped)
+					continue
+				}
+			}
+			if tok.Type == tokenizer.TextToken {
+				infoBuf.WriteString(tok.Value)
+				p.lineStart = false
+				continue
+			}
+			flushInfo()
 			p.codeBlockFirst = false
-			events = append(events, Event{Type: CodeBlockLangEvent, Value: tok.Value})
+			p.lineStart = false
+			events = append(events, Event{Type: TextEvent, Value: tok.Value})
 		} else if tok.Type == tokenizer.TextToken && strings.TrimSpace(tok.Value) == "" {
 			events = append(events, Event{Type: TextEvent, Value: tok.Value})
 		} else {
@@ -183,6 +216,7 @@ func (p *Parser) processCodeBlock() []Event {
 			events = append(events, Event{Type: TextEvent, Value: tok.Value})
 		}
 	}
+	flushInfo()
 	return events
 }
 

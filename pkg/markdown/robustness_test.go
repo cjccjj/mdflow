@@ -325,9 +325,12 @@ func TestRobustness_LoneDash(t *testing.T) {
 
 func TestRobustness_LoneBacktick(t *testing.T) {
 	out := renderOutput("`")
-	// Single backtick starts inline code, Close() ends it — should have inline code style
-	if !strings.Contains(out, "\033[38;5;215;48;5;236m") {
-		t.Errorf("expected inline code style: %q", out)
+	// Single backtick with no matching closer is literal text per CommonMark 6.1
+	if !strings.Contains(out, "`") {
+		t.Errorf("expected backtick character in output: %q", out)
+	}
+	if strings.Contains(out, "\033[38;5;215;48;5;236m") {
+		t.Errorf("expected no inline code style for lone backtick: %q", out)
 	}
 }
 

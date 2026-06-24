@@ -137,6 +137,10 @@ func (p *Parser) processNormal() []Event {
 
 	first := p.buf[0]
 
+	if first.Type == tokenizer.BackslashToken {
+		return p.handleBackslash()
+	}
+
 	if p.lineStart && first.Type == tokenizer.HashToken {
 		return p.tryHeader()
 	}
@@ -191,6 +195,11 @@ func (p *Parser) processNormal() []Event {
 		if waiting {
 			return nil
 		}
+		if !hasMatchingCloser(p.buf[1:], tokenizer.StarToken, 1) {
+			p.consume(1)
+			p.lineStart = false
+			return []Event{{Type: TextEvent, Value: "*"}}
+		}
 		p.consume(1)
 		p.state = ItalicState
 		p.italicOpener = tokenizer.StarToken
@@ -216,6 +225,11 @@ func (p *Parser) processNormal() []Event {
 		}
 		if waiting {
 			return nil
+		}
+		if !hasMatchingCloser(p.buf[1:], tokenizer.UnderscoreToken, 1) {
+			p.consume(1)
+			p.lineStart = false
+			return []Event{{Type: TextEvent, Value: "_"}}
 		}
 		p.consume(1)
 		p.state = ItalicState
@@ -245,6 +259,15 @@ func (p *Parser) processNormal() []Event {
 		n := p.countConsecutive(tokenizer.BacktickToken)
 		if n == len(p.buf) && !p.eof {
 			return nil
+		}
+		if n == 1 && !hasMatchingCloser(p.buf[n:], tokenizer.BacktickToken, n) {
+			p.consume(n)
+			p.lineStart = false
+			var events []Event
+			for i := 0; i < n; i++ {
+				events = append(events, Event{Type: TextEvent, Value: "`"})
+			}
+			return events
 		}
 		p.consume(n)
 		p.state = InlineCodeState
@@ -388,6 +411,9 @@ func (p *Parser) bufferHasPattern() bool {
 		return true
 	}
 	if p.buf[0].Type == tokenizer.LeftBracketToken {
+		return true
+	}
+	if p.buf[0].Type == tokenizer.BackslashToken {
 		return true
 	}
 	return false

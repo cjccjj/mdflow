@@ -117,21 +117,27 @@ func TestTokenizeBackslashEscape(t *testing.T) {
 			name:  "escape star",
 			input: []byte(`\*text`),
 			expected: []Token{
-				{Type: TextToken, Value: "*text"},
+				{Type: BackslashToken, Value: "\\"},
+				{Type: StarToken, Value: "*"},
+				{Type: TextToken, Value: "text"},
 			},
 		},
 		{
 			name:  "escape hash",
 			input: []byte(`\# not heading`),
 			expected: []Token{
-				{Type: TextToken, Value: "# not heading"},
+				{Type: BackslashToken, Value: "\\"},
+				{Type: HashToken, Value: "#"},
+				{Type: TextToken, Value: " not heading"},
 			},
 		},
 		{
 			name:  "escaped backtick",
 			input: []byte{'\\', '`', 'n', 'o', 't', ' ', 'c', 'o', 'd', 'e', '`'},
 			expected: []Token{
-				{Type: TextToken, Value: "`not code"},
+				{Type: BackslashToken, Value: "\\"},
+				{Type: BacktickToken, Value: "`"},
+				{Type: TextToken, Value: "not code"},
 				{Type: BacktickToken, Value: "`"},
 			},
 		},
@@ -139,28 +145,32 @@ func TestTokenizeBackslashEscape(t *testing.T) {
 			name:  "escaped backslash",
 			input: []byte(`\\`),
 			expected: []Token{
-				{Type: TextToken, Value: "\\"},
+				{Type: BackslashToken, Value: "\\"},
+				{Type: BackslashToken, Value: "\\"},
 			},
 		},
 		{
 			name:  "backslash before letter (literal)",
 			input: []byte(`\a`),
 			expected: []Token{
-				{Type: TextToken, Value: "\\a"},
+				{Type: BackslashToken, Value: "\\"},
+				{Type: TextToken, Value: "a"},
 			},
 		},
 		{
 			name:  "backslash followed by space (literal)",
 			input: []byte(`\ word`),
 			expected: []Token{
-				{Type: TextToken, Value: "\\ word"},
+				{Type: BackslashToken, Value: "\\"},
+				{Type: TextToken, Value: " word"},
 			},
 		},
 		{
 			name:  "mixed: escaped star followed by real star",
 			input: []byte(`\**bold*`),
 			expected: []Token{
-				{Type: TextToken, Value: "*"},
+				{Type: BackslashToken, Value: "\\"},
+				{Type: StarToken, Value: "*"},
 				{Type: StarToken, Value: "*"},
 				{Type: TextToken, Value: "bold"},
 				{Type: StarToken, Value: "*"},
