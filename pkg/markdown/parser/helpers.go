@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/cjccjj/mdflow/pkg/markdown/tokenizer"
 )
 
@@ -23,6 +25,15 @@ func orderedListPrefix(s string) (string, bool) {
 		end++
 	}
 	return s[:end], true
+}
+
+func tabRemainingEquiv(col int) int {
+	next := ((col + 4) / 4) * 4
+	equiv := next - col
+	if equiv > 1 {
+		return equiv - 1
+	}
+	return 0
 }
 
 func (p *Parser) equivIndent() (bool, string) {
@@ -78,22 +89,56 @@ func (p *Parser) checkConsecutive(tt tokenizer.TokenType, n int) (matched bool, 
 	return true, false
 }
 
-func (p *Parser) checkHorizontalRule(tt tokenizer.TokenType) (matched bool, waiting bool) {
-	i := 0
-	for i < len(p.buf) && p.buf[i].Type == tt {
-		i++
+func isPureWhitespaceToken(tok tokenizer.Token) bool {
+	if tok.Type == tokenizer.TabToken {
+		return true
 	}
-	if i == len(p.buf) {
+	if tok.Type == tokenizer.TextToken {
+		for _, r := range tok.Value {
+			if r != ' ' {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+func hasStructuralWhitespace(tok tokenizer.Token) bool {
+	if tok.Type == tokenizer.TabToken {
+		return true
+	}
+	if tok.Type == tokenizer.TextToken && strings.HasPrefix(tok.Value, " ") {
+		return true
+	}
+	return false
+}
+
+func (p *Parser) checkHorizontalRule(tt tokenizer.TokenType) (matched bool, waiting bool) {
+	markerCount := 0
+	consumed := 0
+	for consumed < len(p.buf) {
+		tok := p.buf[consumed]
+		if tok.Type == tt {
+			markerCount++
+			consumed++
+		} else if isPureWhitespaceToken(tok) {
+			consumed++
+		} else {
+			break
+		}
+	}
+	if consumed == len(p.buf) {
 		if p.eof {
 			return false, false
 		}
 		return false, true
 	}
-	if i < 3 {
+	if markerCount < 3 {
 		return false, false
 	}
-	if p.buf[i].Type == tokenizer.NewlineToken {
-		p.consume(i)
+	if p.buf[consumed].Type == tokenizer.NewlineToken {
+		p.consume(consumed)
 		return true, false
 	}
 	return false, false

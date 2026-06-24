@@ -20,14 +20,18 @@ func (p *Parser) tryHeader() []Event {
 		if tok.Type == tokenizer.HashToken {
 			level++
 		} else {
-			if i > 0 && tok.Type == tokenizer.TextToken && strings.HasPrefix(tok.Value, " ") {
+			if i > 0 && hasStructuralWhitespace(tok) {
 				p.headerLvl = level
 				p.consume(i + 1)
-				trimmed := strings.TrimPrefix(tok.Value, " ")
 				p.state = HeaderState
 				events := []Event{{Type: HeaderStartEvent, Level: level}}
-				if trimmed != "" {
-					events = append(events, Event{Type: TextEvent, Value: trimmed})
+				if tok.Type == tokenizer.TabToken {
+					p.contentIndent = tabRemainingEquiv(level)
+				} else {
+					trimmed := strings.TrimPrefix(tok.Value, " ")
+					if trimmed != "" {
+						events = append(events, Event{Type: TextEvent, Value: trimmed})
+					}
 				}
 				return events
 			}
@@ -35,7 +39,7 @@ func (p *Parser) tryHeader() []Event {
 		}
 		if level > 6 {
 			remaining := i + 1
-			if remaining < len(p.buf) && p.buf[remaining].Type == tokenizer.TextToken && strings.HasPrefix(p.buf[remaining].Value, " ") {
+			if remaining < len(p.buf) && hasStructuralWhitespace(p.buf[remaining]) {
 				return p.emitHashAsText(level, remaining+1)
 			}
 			return p.emitHashAsText(level, remaining)
@@ -59,13 +63,17 @@ func (p *Parser) tryBullet() []Event {
 		return nil
 	}
 	second := p.buf[1]
-	if second.Type == tokenizer.TextToken && strings.HasPrefix(second.Value, " ") {
-		trimmed := strings.TrimPrefix(second.Value, " ")
+	if hasStructuralWhitespace(second) {
 		p.consume(2)
 		p.lineStart = false
 		events := []Event{{Type: BulletItemEvent}}
-		if trimmed != "" {
-			events = append(events, Event{Type: TextEvent, Value: trimmed})
+		if second.Type == tokenizer.TabToken {
+			p.contentIndent = tabRemainingEquiv(1)
+		} else {
+			trimmed := strings.TrimPrefix(second.Value, " ")
+			if trimmed != "" {
+				events = append(events, Event{Type: TextEvent, Value: trimmed})
+			}
 		}
 		return events
 	}
@@ -77,13 +85,18 @@ func (p *Parser) tryBulletOrBold() []Event {
 	if len(p.buf) < 2 {
 		return nil
 	}
-	if p.buf[1].Type == tokenizer.TextToken && strings.HasPrefix(p.buf[1].Value, " ") {
-		trimmed := strings.TrimPrefix(p.buf[1].Value, " ")
+	second := p.buf[1]
+	if hasStructuralWhitespace(second) {
 		p.consume(2)
 		p.lineStart = false
 		events := []Event{{Type: BulletItemEvent}}
-		if trimmed != "" {
-			events = append(events, Event{Type: TextEvent, Value: trimmed})
+		if second.Type == tokenizer.TabToken {
+			p.contentIndent = tabRemainingEquiv(1)
+		} else if second.Type == tokenizer.TextToken {
+			trimmed := strings.TrimPrefix(second.Value, " ")
+			if trimmed != "" {
+				events = append(events, Event{Type: TextEvent, Value: trimmed})
+			}
 		}
 		return events
 	}
@@ -212,15 +225,19 @@ func (p *Parser) tryBlockquote() []Event {
 		return nil
 	}
 	p.consume(1)
-	if len(p.buf) > 0 && p.buf[0].Type == tokenizer.TextToken && strings.HasPrefix(p.buf[0].Value, " ") {
-		val := p.buf[0].Value
+	if len(p.buf) > 0 && hasStructuralWhitespace(p.buf[0]) {
+		tok := p.buf[0]
 		p.consume(1)
 		p.state = BlockquoteState
 		p.lineStart = false
 		events := []Event{{Type: BlockquoteStartEvent}}
-		trimmed := strings.TrimPrefix(val, " ")
-		if trimmed != "" {
-			events = append(events, Event{Type: TextEvent, Value: trimmed})
+		if tok.Type == tokenizer.TabToken {
+			p.contentIndent = tabRemainingEquiv(1)
+		} else if tok.Type == tokenizer.TextToken {
+			trimmed := strings.TrimPrefix(tok.Value, " ")
+			if trimmed != "" {
+				events = append(events, Event{Type: TextEvent, Value: trimmed})
+			}
 		}
 		return events
 	}
@@ -243,12 +260,17 @@ func (p *Parser) processBlockquote() []Event {
 			events = append(events, Event{Type: NewlineEvent})
 			if len(p.buf) > 0 && p.buf[0].Type == tokenizer.GreaterToken {
 				p.consume(1)
-				if len(p.buf) > 0 && p.buf[0].Type == tokenizer.TextToken && strings.HasPrefix(p.buf[0].Value, " ") {
-					val := strings.TrimPrefix(p.buf[0].Value, " ")
+				if len(p.buf) > 0 && hasStructuralWhitespace(p.buf[0]) {
+					tok := p.buf[0]
 					p.consume(1)
 					p.lineStart = false
-					if val != "" {
-						events = append(events, Event{Type: TextEvent, Value: val})
+					if tok.Type == tokenizer.TabToken {
+						p.contentIndent = tabRemainingEquiv(1)
+					} else if tok.Type == tokenizer.TextToken {
+						val := strings.TrimPrefix(tok.Value, " ")
+						if val != "" {
+							events = append(events, Event{Type: TextEvent, Value: val})
+						}
 					}
 				} else {
 					p.lineStart = false

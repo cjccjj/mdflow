@@ -24,6 +24,7 @@ type Parser struct {
 	linkBracketConsumed bool
 	prevChar            byte
 	eof                 bool
+	contentIndent       int
 }
 
 func New() *Parser {
@@ -50,6 +51,7 @@ func (p *Parser) Reset() {
 	p.linkBracketConsumed = false
 	p.prevChar = 0
 	p.eof = false
+	p.contentIndent = 0
 }
 
 func (p *Parser) Parse(tokens []tokenizer.Token) (events []Event) {
