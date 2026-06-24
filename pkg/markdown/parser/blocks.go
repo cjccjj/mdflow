@@ -102,6 +102,11 @@ func (p *Parser) tryBulletOrBold() []Event {
 	}
 	matched, waiting := p.checkConsecutive(tokenizer.StarToken, 2)
 	if matched {
+		if !hasMatchingCloser(p.buf[2:], tokenizer.StarToken, 2) && hasNewlineIn(p.buf[2:]) {
+			p.consume(2)
+			p.lineStart = false
+			return []Event{{Type: TextEvent, Value: "**"}}
+		}
 		p.consume(2)
 		p.state = BoldState
 		p.boldOpener = tokenizer.StarToken

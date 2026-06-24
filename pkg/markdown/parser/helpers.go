@@ -117,6 +117,39 @@ func hasStructuralWhitespace(tok tokenizer.Token) bool {
 func (p *Parser) checkHorizontalRule(tt tokenizer.TokenType) (matched bool, waiting bool) {
 	markerCount := 0
 	consumed := 0
+	// Skip up to 3 spaces of leading indent (CommonMark 4.1)
+	indent := 0
+	for consumed < len(p.buf) {
+		tok := p.buf[consumed]
+		if tok.Type == tokenizer.TabToken {
+			indent = ((indent + 4) / 4) * 4
+			consumed++
+			if indent > 3 {
+				return false, false
+			}
+		} else if tok.Type == tokenizer.TextToken {
+			spaceCount := 0
+			for _, r := range tok.Value {
+				if r == ' ' {
+					spaceCount++
+				} else {
+					break
+				}
+			}
+			if spaceCount == len(tok.Value) && spaceCount > 0 {
+				indent += spaceCount
+				consumed++
+				if indent > 3 {
+					return false, false
+				}
+			} else {
+				break
+			}
+		} else {
+			break
+		}
+	}
+	// Count markers (whitespace between markers is allowed)
 	for consumed < len(p.buf) {
 		tok := p.buf[consumed]
 		if tok.Type == tt {
@@ -165,4 +198,27 @@ func (p *Parser) consume(n int) {
 		n = len(p.buf)
 	}
 	p.buf = p.buf[n:]
+}
+
+func hasNewlineIn(tokens []tokenizer.Token) bool {
+	for _, tok := range tokens {
+		if tok.Type == tokenizer.NewlineToken {
+			return true
+		}
+	}
+	return false
+}
+
+func isLeftFlanking(tokens []tokenizer.Token) bool {
+	if len(tokens) < 2 {
+		return true
+	}
+	next := tokens[1]
+	if next.Type == tokenizer.NewlineToken || next.Type == tokenizer.TabToken {
+		return false
+	}
+	if next.Type == tokenizer.TextToken && len(next.Value) > 0 && (next.Value[0] == ' ' || next.Value[0] == '\t') {
+		return false
+	}
+	return true
 }

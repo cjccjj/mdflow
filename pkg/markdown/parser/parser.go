@@ -145,6 +145,18 @@ func (p *Parser) processNormal() []Event {
 		return p.handleEntity()
 	}
 
+	if p.lineStart {
+		for _, marker := range []tokenizer.TokenType{tokenizer.DashToken, tokenizer.StarToken, tokenizer.UnderscoreToken} {
+			matched, waiting := p.checkHorizontalRule(marker)
+			if matched {
+				return []Event{{Type: HorizontalRuleEvent}}
+			}
+			if waiting {
+				return nil
+			}
+		}
+	}
+
 	if p.lineStart && first.Type == tokenizer.HashToken {
 		return p.tryHeader()
 	}
@@ -189,8 +201,20 @@ func (p *Parser) processNormal() []Event {
 	}
 
 	if first.Type == tokenizer.StarToken && !p.lineStart {
-		matched, waiting := p.checkConsecutive(tokenizer.StarToken, 2)
+		matched, waiting := p.checkHorizontalRule(tokenizer.StarToken)
 		if matched {
+			return []Event{{Type: HorizontalRuleEvent}}
+		}
+		if waiting {
+			return nil
+		}
+		matched, waiting = p.checkConsecutive(tokenizer.StarToken, 2)
+		if matched {
+			if !hasMatchingCloser(p.buf[2:], tokenizer.StarToken, 2) && hasNewlineIn(p.buf[2:]) {
+				p.consume(2)
+				p.lineStart = false
+				return []Event{{Type: TextEvent, Value: "**"}}
+			}
 			p.consume(2)
 			p.state = BoldState
 			p.boldOpener = tokenizer.StarToken
@@ -211,17 +235,20 @@ func (p *Parser) processNormal() []Event {
 	}
 
 	if first.Type == tokenizer.UnderscoreToken {
-		if p.lineStart {
-			matched, waiting := p.checkHorizontalRule(tokenizer.UnderscoreToken)
-			if matched {
-				return []Event{{Type: HorizontalRuleEvent}}
-			}
-			if waiting {
-				return nil
-			}
-		}
-		matched, waiting := p.checkConsecutive(tokenizer.UnderscoreToken, 2)
+		matched, waiting := p.checkHorizontalRule(tokenizer.UnderscoreToken)
 		if matched {
+			return []Event{{Type: HorizontalRuleEvent}}
+		}
+		if waiting {
+			return nil
+		}
+		matched, waiting = p.checkConsecutive(tokenizer.UnderscoreToken, 2)
+		if matched {
+			if !hasMatchingCloser(p.buf[2:], tokenizer.UnderscoreToken, 2) && hasNewlineIn(p.buf[2:]) {
+				p.consume(2)
+				p.lineStart = false
+				return []Event{{Type: TextEvent, Value: "__"}}
+			}
 			p.consume(2)
 			p.state = BoldState
 			p.boldOpener = tokenizer.UnderscoreToken
@@ -231,6 +258,11 @@ func (p *Parser) processNormal() []Event {
 			return nil
 		}
 		if !hasMatchingCloser(p.buf[1:], tokenizer.UnderscoreToken, 1) {
+			p.consume(1)
+			p.lineStart = false
+			return []Event{{Type: TextEvent, Value: "_"}}
+		}
+		if !isLeftFlanking(p.buf) {
 			p.consume(1)
 			p.lineStart = false
 			return []Event{{Type: TextEvent, Value: "_"}}
