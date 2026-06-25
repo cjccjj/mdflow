@@ -642,6 +642,7 @@ func (p *Parser) processSetextPending() []Event {
 
 	// Otherwise, append this line to the heading content (multi-line setext).
 	lineTokens := p.collectLineTokens()
+	lineTokens = stripLeadingWhitespaceTokens(lineTokens)
 	p.setextBuf = append(p.setextBuf, tokenizer.Token{Type: tokenizer.NewlineToken, Value: "\n"})
 	p.setextBuf = append(p.setextBuf, lineTokens...)
 	return nil
