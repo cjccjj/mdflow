@@ -39,6 +39,32 @@ func hasMatchingCloser(tokens []tokenizer.Token, tt tokenizer.TokenType, n int, 
 	return false
 }
 
+func hasCodeSpanCloser(tokens []tokenizer.Token, n int) bool {
+	for i := 0; i <= len(tokens)-n; i++ {
+		if tokens[i].Type != tokenizer.BacktickToken {
+			continue
+		}
+		allBacktick := true
+		for j := 1; j < n; j++ {
+			if tokens[i+j].Type != tokenizer.BacktickToken {
+				allBacktick = false
+				break
+			}
+		}
+		if !allBacktick {
+			i += n - 1
+			continue
+		}
+		prevNotBacktick := i == 0 || tokens[i-1].Type != tokenizer.BacktickToken
+		nextNotBacktick := i+n >= len(tokens) || tokens[i+n].Type != tokenizer.BacktickToken
+		if prevNotBacktick && nextNotBacktick {
+			return true
+		}
+		i += n - 1
+	}
+	return false
+}
+
 func (p *Parser) handleBackslash() []Event {
 	if len(p.buf) < 2 {
 		p.consume(1)

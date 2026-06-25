@@ -98,11 +98,18 @@ func (p *Parser) processStrikethrough() []Event {
 
 func (p *Parser) processInlineCode() []Event {
 	var events []Event
+	prevWasBacktick := false
 	for len(p.buf) > 0 {
 		tok := p.buf[0]
 		if tok.Type == tokenizer.BacktickToken {
 			matched, waiting := p.checkConsecutive(tokenizer.BacktickToken, p.fenceLen)
 			if matched {
+				if prevWasBacktick || (p.fenceLen < len(p.buf) && p.buf[p.fenceLen].Type == tokenizer.BacktickToken) {
+					p.consume(1)
+					events = append(events, Event{Type: TextEvent, Value: "`"})
+					prevWasBacktick = true
+					continue
+				}
 				p.consume(p.fenceLen)
 				p.state = NormalState
 				p.fenceLen = 0
@@ -125,11 +132,11 @@ func (p *Parser) processInlineCode() []Event {
 						}
 					}
 					if !contentOnlySpaces {
-						if events[0].Type == TextEvent && strings.HasPrefix(events[0].Value, " ") {
-							events[0].Value = strings.TrimPrefix(events[0].Value, " ")
-						}
 						lastIdx := len(events) - 1
-						if events[lastIdx].Type == TextEvent && strings.HasSuffix(events[lastIdx].Value, " ") {
+						hasLeadingSpace := events[0].Type == TextEvent && strings.HasPrefix(events[0].Value, " ")
+						hasTrailingSpace := events[lastIdx].Type == TextEvent && strings.HasSuffix(events[lastIdx].Value, " ")
+						if hasLeadingSpace && hasTrailingSpace {
+							events[0].Value = strings.TrimPrefix(events[0].Value, " ")
 							events[lastIdx].Value = strings.TrimSuffix(events[lastIdx].Value, " ")
 						}
 					}
@@ -143,14 +150,13 @@ func (p *Parser) processInlineCode() []Event {
 		}
 		if tok.Type == tokenizer.NewlineToken {
 			p.consume(1)
-			p.state = NormalState
+			prevWasBacktick = false
+			events = append(events, Event{Type: TextEvent, Value: " "})
 			p.lineStart = true
-			p.fenceLen = 0
-			events = append(events, Event{Type: InlineCodeEndEvent})
-			events = append(events, Event{Type: NewlineEvent})
-			return events
+			continue
 		}
 		p.consume(1)
+		prevWasBacktick = false
 		events = append(events, Event{Type: TextEvent, Value: tok.Value})
 		p.lineStart = false
 	}
