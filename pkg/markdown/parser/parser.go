@@ -269,6 +269,15 @@ func (p *Parser) processLineStartBlock(first tokenizer.Token) ([]Event, bool) {
 			p.lineStart = false
 			events := []Event{{Type: BulletItemEvent, Value: prefix}}
 			rest := first.Value[len(prefix):]
+			if strings.HasPrefix(rest, "    ") {
+				p.state = IndentedCodeBlockState
+				codeContent := rest[4:]
+				events = append(events, Event{Type: CodeBlockStartEvent})
+				if codeContent != "" {
+					events = append(events, Event{Type: TextEvent, Value: codeContent})
+				}
+				return events, true
+			}
 			if rest != "" {
 				events = append(events, Event{Type: TextEvent, Value: rest})
 			}

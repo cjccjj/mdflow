@@ -65,6 +65,15 @@ func (p *Parser) tryBullet() []Event {
 			p.contentIndent = tabRemainingEquiv(1)
 		} else {
 			trimmed := strings.TrimPrefix(second.Value, " ")
+			if strings.HasPrefix(trimmed, "    ") {
+				p.state = IndentedCodeBlockState
+				codeContent := trimmed[4:]
+				events = append(events, Event{Type: CodeBlockStartEvent})
+				if codeContent != "" {
+					events = append(events, Event{Type: TextEvent, Value: codeContent})
+				}
+				return events
+			}
 			if trimmed != "" {
 				events = append(events, Event{Type: TextEvent, Value: trimmed})
 			}
@@ -72,6 +81,7 @@ func (p *Parser) tryBullet() []Event {
 		return events
 	}
 	p.consume(1)
+	p.lineStart = false
 	return []Event{{Type: TextEvent, Value: "-"}}
 }
 
@@ -88,6 +98,15 @@ func (p *Parser) tryBulletOrBold() []Event {
 			p.contentIndent = tabRemainingEquiv(1)
 		} else if second.Type == tokenizer.TextToken {
 			trimmed := strings.TrimPrefix(second.Value, " ")
+			if strings.HasPrefix(trimmed, "    ") {
+				p.state = IndentedCodeBlockState
+				codeContent := trimmed[4:]
+				events = append(events, Event{Type: CodeBlockStartEvent})
+				if codeContent != "" {
+					events = append(events, Event{Type: TextEvent, Value: codeContent})
+				}
+				return events
+			}
 			if trimmed != "" {
 				events = append(events, Event{Type: TextEvent, Value: trimmed})
 			}
@@ -735,6 +754,21 @@ func (p *Parser) processSetextPending() []Event {
 
 	if !p.hasNewline() {
 		return nil
+	}
+
+	// A line matching a list item marker takes precedence over a setext underline.
+	if len(p.buf) > 0 {
+		first := p.buf[0]
+		if first.Type == tokenizer.DashToken || first.Type == tokenizer.StarToken {
+			if len(p.buf) < 2 || p.buf[1].Type == tokenizer.NewlineToken || hasStructuralWhitespace(p.buf[1]) {
+				events := p.parseInlineLine(p.setextBuf)
+				events = append(events, Event{Type: NewlineEvent})
+				p.setextBuf = nil
+				p.setextWaiting = false
+				p.state = NormalState
+				return events
+			}
+		}
 	}
 
 	level, ok := p.checkSetextUnderline()
