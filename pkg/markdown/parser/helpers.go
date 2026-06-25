@@ -65,6 +65,33 @@ func (p *Parser) equivIndent() (bool, string) {
 	return false, ""
 }
 
+func (p *Parser) peekEquivIndent() (satisfied bool, consumeCount int, remaining string) {
+	col := 0
+	for i, tok := range p.buf {
+		switch tok.Type {
+		case tokenizer.TabToken:
+			col = ((col + 4) / 4) * 4
+			if col >= 4 {
+				return true, i + 1, ""
+			}
+		case tokenizer.TextToken:
+			for j, r := range tok.Value {
+				if r == ' ' {
+					col++
+					if col >= 4 {
+						return true, i + 1, tok.Value[j+1:]
+					}
+				} else {
+					return false, 0, ""
+				}
+			}
+		default:
+			return false, 0, ""
+		}
+	}
+	return false, 0, ""
+}
+
 func (p *Parser) hasNewline() bool {
 	for _, tok := range p.buf {
 		if tok.Type == tokenizer.NewlineToken {
@@ -100,6 +127,18 @@ func isPureWhitespaceToken(tok tokenizer.Token) bool {
 			}
 		}
 		return true
+	}
+	return false
+}
+
+func isBlankLineTokens(tokens []tokenizer.Token) bool {
+	for _, tok := range tokens {
+		if tok.Type == tokenizer.NewlineToken {
+			return true
+		}
+		if !isPureWhitespaceToken(tok) {
+			return false
+		}
 	}
 	return false
 }
@@ -282,6 +321,54 @@ func hasNewlineIn(tokens []tokenizer.Token) bool {
 		}
 	}
 	return false
+}
+
+func isListStartAfterIndent(tokens []tokenizer.Token, remaining string) bool {
+	if remaining != "" {
+		if _, ok := orderedListPrefix(remaining); ok {
+			return true
+		}
+		if isDigitsOnly(remaining) && len(tokens) > 0 {
+			next := tokens[0]
+			if (next.Type == tokenizer.LeftParenToken || next.Type == tokenizer.RightParenToken) && len(tokens) > 1 && hasStructuralWhitespace(tokens[1]) {
+				return true
+			}
+			if next.Type == tokenizer.TextToken && len(next.Value) > 0 && next.Value[0] == '.' {
+				if len(next.Value) > 1 && next.Value[1] == ' ' {
+					return true
+				}
+				if len(next.Value) == 1 && len(tokens) > 1 && hasStructuralWhitespace(tokens[1]) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	if len(tokens) == 0 {
+		return false
+	}
+	first := tokens[0]
+	if first.Type == tokenizer.DashToken || first.Type == tokenizer.StarToken {
+		return true
+	}
+	if first.Type == tokenizer.TextToken {
+		if _, ok := orderedListPrefix(first.Value); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func isDigitsOnly(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func isLeftFlanking(tokens []tokenizer.Token) bool {

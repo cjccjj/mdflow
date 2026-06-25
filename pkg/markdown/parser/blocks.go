@@ -302,6 +302,18 @@ func (p *Parser) processIndentedCodeBlock() []Event {
 			}
 			continue
 		}
+		if isBlankLineTokens(p.buf) {
+			for len(p.buf) > 0 && p.buf[0].Type != tokenizer.NewlineToken {
+				t := p.buf[0]
+				p.consume(1)
+				events = append(events, Event{Type: TextEvent, Value: t.Value})
+			}
+			if len(p.buf) > 0 && p.buf[0].Type == tokenizer.NewlineToken {
+				p.consume(1)
+				events = append(events, Event{Type: NewlineEvent})
+			}
+			continue
+		}
 		p.state = NormalState
 		events = append(events, Event{Type: CodeBlockEndEvent})
 		return events

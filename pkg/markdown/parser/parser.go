@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/cjccjj/mdflow/pkg/markdown/tokenizer"
 )
 
@@ -429,7 +431,15 @@ func (p *Parser) processDeferredLineStart(first tokenizer.Token) ([]Event, bool)
 		return p.tryTableHeader(), true
 	}
 
-	if ok, remaining := p.equivIndent(); ok {
+	if satisfied, consumeCount, remaining := p.peekEquivIndent(); satisfied {
+		if isListStartAfterIndent(p.buf[consumeCount:], remaining) {
+			p.consume(consumeCount)
+			if remaining != "" {
+				return p.handleIndentedListRemaining(remaining), true
+			}
+			return p.handleIndentedList(), true
+		}
+		p.consume(consumeCount)
 		p.state = IndentedCodeBlockState
 		p.lineStart = false
 		events := []Event{{Type: CodeBlockStartEvent}}
@@ -447,6 +457,99 @@ func (p *Parser) processDeferredLineStart(first tokenizer.Token) ([]Event, bool)
 	}
 
 	return nil, false
+}
+
+func (p *Parser) handleIndentedList() []Event {
+	if len(p.buf) == 0 {
+		return nil
+	}
+	first := p.buf[0]
+	switch first.Type {
+	case tokenizer.DashToken:
+		return p.tryBullet()
+	case tokenizer.StarToken:
+		return p.tryBulletOrBold()
+	case tokenizer.TextToken:
+		if prefix, ok := orderedListPrefix(first.Value); ok {
+			p.consume(1)
+			p.lineStart = false
+			events := []Event{{Type: BulletItemEvent, Value: prefix}}
+			rest := first.Value[len(prefix):]
+			if rest != "" {
+				events = append(events, Event{Type: TextEvent, Value: rest})
+			}
+			return events
+		}
+	}
+	return nil
+}
+
+func (p *Parser) handleIndentedListRemaining(remaining string) []Event {
+	if prefix, ok := orderedListPrefix(remaining); ok {
+		p.lineStart = false
+		events := []Event{{Type: BulletItemEvent, Value: prefix}}
+		rest := remaining[len(prefix):]
+		if rest != "" {
+			events = append(events, Event{Type: TextEvent, Value: rest})
+		}
+		return events
+	}
+
+	if isDigitsOnly(remaining) && len(p.buf) > 0 {
+		next := p.buf[0]
+		if next.Type == tokenizer.RightParenToken || next.Type == tokenizer.LeftParenToken {
+			p.consume(1)
+			prefix := remaining + next.Value
+			if len(p.buf) > 0 && hasStructuralWhitespace(p.buf[0]) {
+				tok := p.buf[0]
+				p.consume(1)
+				p.lineStart = false
+				events := []Event{{Type: BulletItemEvent, Value: prefix + " "}}
+				if tok.Type == tokenizer.TabToken {
+					p.contentIndent = tabRemainingEquiv(1)
+				} else if tok.Type == tokenizer.TextToken {
+					trimmed := strings.TrimPrefix(tok.Value, " ")
+					if trimmed != "" {
+						events = append(events, Event{Type: TextEvent, Value: trimmed})
+					}
+				}
+				return events
+			}
+			p.lineStart = false
+			return []Event{{Type: BulletItemEvent, Value: prefix + " "}}
+		}
+		if next.Type == tokenizer.TextToken && len(next.Value) > 0 && next.Value[0] == '.' {
+			dot := next.Value
+			if len(dot) > 1 && dot[1] == ' ' {
+				p.consume(1)
+				prefix := remaining + dot
+				p.lineStart = false
+				events := []Event{{Type: BulletItemEvent, Value: prefix}}
+				rest := dot[len(prefix)-len(remaining):]
+				if rest != "" {
+					events = append(events, Event{Type: TextEvent, Value: rest})
+				}
+				return events
+			}
+			if len(dot) == 1 && len(p.buf) > 1 && hasStructuralWhitespace(p.buf[1]) {
+				p.consume(1)
+				tok := p.buf[0]
+				p.consume(1)
+				p.lineStart = false
+				events := []Event{{Type: BulletItemEvent, Value: remaining + ". "}}
+				if tok.Type == tokenizer.TabToken {
+					p.contentIndent = tabRemainingEquiv(1)
+				} else if tok.Type == tokenizer.TextToken {
+					trimmed := strings.TrimPrefix(tok.Value, " ")
+					if trimmed != "" {
+						events = append(events, Event{Type: TextEvent, Value: trimmed})
+					}
+				}
+				return events
+			}
+		}
+	}
+	return nil
 }
 
 func (p *Parser) emitTextOrSpecial() []Event {
