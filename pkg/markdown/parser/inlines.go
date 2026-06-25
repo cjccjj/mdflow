@@ -107,13 +107,31 @@ func (p *Parser) processInlineCode() []Event {
 				p.state = NormalState
 				p.fenceLen = 0
 				if len(events) > 0 {
-					first := events[0]
-					last := events[len(events)-1]
-					if first.Type == TextEvent && strings.HasPrefix(first.Value, " ") {
-						first.Value = strings.TrimPrefix(first.Value, " ")
+					contentOnlySpaces := true
+					for _, e := range events {
+						if e.Type == TextEvent {
+							for _, r := range e.Value {
+								if r != ' ' {
+									contentOnlySpaces = false
+									break
+								}
+							}
+						} else {
+							contentOnlySpaces = false
+							break
+						}
+						if !contentOnlySpaces {
+							break
+						}
 					}
-					if last.Type == TextEvent && strings.HasSuffix(last.Value, " ") {
-						last.Value = strings.TrimSuffix(last.Value, " ")
+					if !contentOnlySpaces {
+						if events[0].Type == TextEvent && strings.HasPrefix(events[0].Value, " ") {
+							events[0].Value = strings.TrimPrefix(events[0].Value, " ")
+						}
+						lastIdx := len(events) - 1
+						if events[lastIdx].Type == TextEvent && strings.HasSuffix(events[lastIdx].Value, " ") {
+							events[lastIdx].Value = strings.TrimSuffix(events[lastIdx].Value, " ")
+						}
 					}
 				}
 				events = append(events, Event{Type: InlineCodeEndEvent})

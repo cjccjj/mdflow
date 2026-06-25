@@ -194,6 +194,189 @@ func stripClosingHashSequence(tokens []tokenizer.Token) []tokenizer.Token {
 	return tokens
 }
 
+func (p *Parser) tryFencedCodeBlock() ([]Event, bool) {
+	idx := 0
+	indent := 0
+
+	for idx < len(p.buf) {
+		tok := p.buf[idx]
+		if tok.Type == tokenizer.TextToken {
+			v := tok.Value
+			sp := 0
+			for sp < len(v) && v[sp] == ' ' {
+				sp++
+			}
+			if sp < len(v) {
+				break
+			}
+			indent += sp
+			idx++
+			if indent > 3 {
+				return nil, false
+			}
+		} else if tok.Type == tokenizer.TabToken {
+			indent = ((indent + 4) / 4) * 4
+			idx++
+			if indent > 3 {
+				return nil, false
+			}
+		} else {
+			break
+		}
+	}
+
+	if idx >= len(p.buf) {
+		return nil, false
+	}
+
+	firstAfterIndent := p.buf[idx]
+
+	if firstAfterIndent.Type == tokenizer.BacktickToken {
+		count := 0
+		for idx+count < len(p.buf) && p.buf[idx+count].Type == tokenizer.BacktickToken {
+			count++
+		}
+		if count < 3 {
+			return nil, false
+		}
+
+		hasBacktickInInfo := false
+		for i := idx + count; i < len(p.buf); i++ {
+			if p.buf[i].Type == tokenizer.NewlineToken {
+				break
+			}
+			if p.buf[i].Type == tokenizer.BacktickToken {
+				hasBacktickInInfo = true
+				break
+			}
+		}
+		if hasBacktickInInfo {
+			return nil, false
+		}
+
+		p.consume(idx + count)
+		p.state = CodeBlockState
+		p.fenceLen = count
+		p.fenceChar = tokenizer.BacktickToken
+		p.codeBlockFirst = true
+		p.codeBlockIndent = indent
+		return []Event{{Type: CodeBlockStartEvent}}, true
+	}
+
+	if firstAfterIndent.Type == tokenizer.TildeToken {
+		count := 0
+		for idx+count < len(p.buf) && p.buf[idx+count].Type == tokenizer.TildeToken {
+			count++
+		}
+		if count < 3 {
+			return nil, false
+		}
+
+		p.consume(idx + count)
+		p.state = CodeBlockState
+		p.fenceLen = count
+		p.fenceChar = tokenizer.TildeToken
+		p.codeBlockFirst = true
+		p.codeBlockIndent = indent
+		return []Event{{Type: CodeBlockStartEvent}}, true
+	}
+
+	return nil, false
+}
+
+func stripLineIndent(text string, indent int) string {
+	if indent <= 0 {
+		return text
+	}
+	runes := []rune(text)
+	stripped := 0
+	for stripped < len(runes) && stripped < indent && runes[stripped] == ' ' {
+		stripped++
+	}
+	return string(runes[stripped:])
+}
+
+func (p *Parser) tryCloseCodeFence() (handled bool, closing bool) {
+	idx := 0
+	indent := 0
+
+	for idx < len(p.buf) {
+		tok := p.buf[idx]
+		if tok.Type == tokenizer.TextToken {
+			v := tok.Value
+			sp := 0
+			for sp < len(v) && v[sp] == ' ' {
+				sp++
+			}
+			if sp < len(v) {
+				break
+			}
+			indent += sp
+			idx++
+			if indent > 3 {
+				return false, false
+			}
+		} else if tok.Type == tokenizer.TabToken {
+			indent = ((indent + 4) / 4) * 4
+			idx++
+			if indent > 3 {
+				return false, false
+			}
+		} else {
+			break
+		}
+	}
+
+	if idx >= len(p.buf) || p.buf[idx].Type != p.fenceChar {
+		return false, false
+	}
+
+	count := 0
+	for idx+count < len(p.buf) && p.buf[idx+count].Type == p.fenceChar {
+		count++
+	}
+	if count < p.fenceLen {
+		return false, false
+	}
+
+	afterFence := idx + count
+	for i := afterFence; i < len(p.buf); i++ {
+		tok := p.buf[i]
+		if tok.Type == tokenizer.NewlineToken {
+			break
+		}
+		if tok.Type == tokenizer.TabToken {
+			continue
+		}
+		if tok.Type == tokenizer.TextToken && strings.TrimSpace(tok.Value) == "" {
+			continue
+		}
+		return false, false
+	}
+
+	p.consume(idx + count)
+
+	for len(p.buf) > 0 {
+		tok := p.buf[0]
+		if tok.Type == tokenizer.NewlineToken {
+			break
+		}
+		if isPureWhitespaceToken(tok) {
+			p.consume(1)
+			continue
+		}
+		break
+	}
+
+	p.state = NormalState
+	p.lineStart = true
+	p.fenceLen = 0
+	p.fenceChar = 0
+	p.codeBlockFirst = false
+	p.codeBlockIndent = 0
+	return true, true
+}
+
 func (p *Parser) processCodeBlock() []Event {
 	var events []Event
 	var infoBuf strings.Builder
@@ -207,24 +390,11 @@ func (p *Parser) processCodeBlock() []Event {
 		}
 	}
 	for len(p.buf) > 0 {
-		if p.lineStart && p.buf[0].Type == p.fenceChar {
-			matched, waiting := p.checkConsecutive(p.fenceChar, p.fenceLen)
-			if matched {
-				n := p.countConsecutive(p.fenceChar)
-				if n == len(p.buf) {
-					break
-				}
-				p.consume(n)
-				p.state = NormalState
-				p.fenceLen = 0
-				p.fenceChar = 0
-				p.codeBlockFirst = false
+		if p.lineStart {
+			if handled, closing := p.tryCloseCodeFence(); handled && closing {
 				flushInfo()
 				events = append(events, Event{Type: CodeBlockEndEvent})
 				return events
-			}
-			if waiting {
-				break
 			}
 		}
 		tok := p.buf[0]
@@ -259,12 +429,27 @@ func (p *Parser) processCodeBlock() []Event {
 				p.lineStart = false
 				continue
 			}
+			if tok.Type == tokenizer.HashToken {
+				infoBuf.WriteString("#")
+				p.lineStart = false
+				continue
+			}
 			flushInfo()
 			p.codeBlockFirst = false
 			p.lineStart = false
 			events = append(events, Event{Type: TextEvent, Value: tok.Value})
+		} else if p.codeBlockIndent > 0 {
+			text := tok.Value
+			if tok.Type == tokenizer.TextToken || tok.Type == tokenizer.TabToken {
+				stripped := stripLineIndent(text, p.codeBlockIndent)
+				events = append(events, Event{Type: TextEvent, Value: stripped})
+			} else {
+				events = append(events, Event{Type: TextEvent, Value: text})
+			}
+			p.lineStart = false
 		} else if tok.Type == tokenizer.TextToken && strings.TrimSpace(tok.Value) == "" {
 			events = append(events, Event{Type: TextEvent, Value: tok.Value})
+			p.lineStart = false
 		} else {
 			p.codeBlockFirst = false
 			p.lineStart = false

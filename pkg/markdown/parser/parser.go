@@ -29,10 +29,11 @@ type lineContext struct {
 }
 
 type blockContext struct {
-	headerLvl      int
-	fenceLen       int
-	fenceChar      tokenizer.TokenType
-	codeBlockFirst bool
+	headerLvl       int
+	fenceLen        int
+	fenceChar       tokenizer.TokenType
+	codeBlockFirst  bool
+	codeBlockIndent int
 }
 
 type emphasisContext struct {
@@ -188,6 +189,10 @@ func (p *Parser) processEscapeOrEntity(first tokenizer.Token) ([]Event, bool) {
 }
 
 func (p *Parser) processLineStartBlock(first tokenizer.Token) ([]Event, bool) {
+	if events, handled := p.tryFencedCodeBlock(); handled {
+		return events, true
+	}
+
 	for _, marker := range []tokenizer.TokenType{tokenizer.DashToken, tokenizer.StarToken, tokenizer.UnderscoreToken} {
 		matched, waiting := p.checkHorizontalRule(marker)
 		if matched {
@@ -365,6 +370,24 @@ func (p *Parser) processBacktickStart() ([]Event, bool) {
 			if n == len(p.buf) && !p.eof {
 				return nil, true
 			}
+
+			hasBacktickInInfo := false
+			for i := n; i < len(p.buf); i++ {
+				if p.buf[i].Type == tokenizer.NewlineToken {
+					break
+				}
+				if p.buf[i].Type == tokenizer.BacktickToken {
+					hasBacktickInInfo = true
+					break
+				}
+			}
+			if hasBacktickInInfo {
+				p.consume(n)
+				p.state = InlineCodeState
+				p.fenceLen = n
+				return []Event{{Type: InlineCodeStartEvent}}, true
+			}
+
 			p.consume(n)
 			p.state = CodeBlockState
 			p.fenceLen = n
