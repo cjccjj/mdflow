@@ -497,12 +497,20 @@ func (p *Parser) processDeferredLineStart(first tokenizer.Token) ([]Event, bool)
 	}
 
 	if satisfied, consumeCount, remaining := p.peekEquivIndent(); satisfied {
+		// Per spec §5.3: list items must not be preceded by more than
+		// three spaces of indentation. If 4+ spaces precede a list
+		// marker, it is NOT a list item — it is either an indented
+		// code block (if preceded by a blank line) or paragraph
+		// continuation text. Fall through to indented code block.
 		if isListStartAfterIndent(p.buf[consumeCount:], remaining) {
 			p.consume(consumeCount)
+			p.state = IndentedCodeBlockState
+			p.lineStart = false
+			events := []Event{{Type: CodeBlockStartEvent}}
 			if remaining != "" {
-				return p.handleIndentedListRemaining(remaining), true
+				events = append(events, Event{Type: TextEvent, Value: remaining})
 			}
-			return p.handleIndentedList(), true
+			return events, true
 		}
 		p.consume(consumeCount)
 		p.state = IndentedCodeBlockState
