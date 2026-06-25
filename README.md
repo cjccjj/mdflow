@@ -34,11 +34,15 @@ r.Close()
 
 ## Supported
 
-`#`–`######` headings, setext headings (`===`/`---`), `**bold**`, `*italic*`, `__bold__`, `_italic_`, `~~strikethrough~~`, `` `inline code` ``, fenced/indented code blocks, `-`/`*` bullets, `1.` ordered lists, `---`/`***`/`___` horizontal rules, `> blockquotes`, `\| tables \|`, inline links `[text](url)`, backslash escapes.
+`#`–`######` headings, setext headings (`===`/`---`), `**bold**`, `*italic*`, `__bold__`, `_italic_`, `~~strikethrough~~`, `` `inline code` ``, fenced/indented code blocks, `-`/`*` bullets, `1.` ordered lists, `---`/`***`/`___` horizontal rules, `> blockquotes`, `\| tables \|`, inline links `[text](url)`, reference links `[text][label]`, backslash escapes.
+
+## Partially supported
+
+HTML blocks (`<pre>`, `<script>`, `<style>`, `<!-- -->`, `<? ?>`, `<!DOCTYPE>`, `<![CDATA[` — printed dimmed as raw). Link reference definitions (`[label]: url` — shown dimmed). Some HTML block types and multi-line definitions deferred.
 
 ## Not supported (printed as-is)
 
-`![images](url)`, `<html>`, GFM task lists, reference links, autolinks.
+`![images](url)`, `<div>` / `<table>` / other generic HTML blocks, GFM task lists, autolinks.
 
 ## Roadmap
 
@@ -53,11 +57,11 @@ r.Close()
 - Terminal width wrapping, syntax highlighting in code blocks
 
 *Deferred / not practical for streaming:*
-- Link reference definitions (4.7), HTML blocks (4.6), raw HTML (6.6), nested lists (5.3), full emphasis algorithm (6.2), autolinks (6.5), images (6.4)
+- HTML blocks types 6-7 (4.6), raw HTML inline (6.6), nested lists (5.3), full emphasis algorithm (6.2), autolinks (6.5), images (6.4)
 
 ## Compliance
 
-mdflow aims to cover CommonMark 0.31.2 and commonly-used GFM extensions. Coverage: ~72% of spec sections supported or partially supported. Streaming architecture means some features (reference links, nested structures) are deliberately omitted or simplified.
+mdflow aims to cover CommonMark 0.31.2 and commonly-used GFM extensions. Coverage: ~78% of spec sections supported or partially supported. Streaming architecture means some features (shortcut reference links, nested structures) are deliberately omitted or simplified.
 
 ## API
 
