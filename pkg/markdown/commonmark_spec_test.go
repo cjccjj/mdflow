@@ -163,8 +163,8 @@ var sectionCategory = map[string]Category{
 	"Setext headings":          CatSupported,
 	"Indented code blocks":     CatPartial,
 	"Fenced code blocks":       CatPartial,
-	"HTML blocks":              CatSkip,
-	"Link reference definition": CatSkip,
+	"HTML blocks":              CatPassThrough,
+	"Link reference definition": CatPassThrough,
 	"Paragraphs":               CatSupported,
 	"Blank lines":              CatPartial,
 

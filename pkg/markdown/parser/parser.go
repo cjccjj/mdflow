@@ -15,6 +15,8 @@ type Parser struct {
 	tableContext
 	setextContext
 	linkContext
+	htmlBlockContext
+	linkRefDefContext
 }
 
 type tokenBuffer struct {
@@ -58,6 +60,16 @@ type linkContext struct {
 	linkBracketConsumed bool
 }
 
+type htmlBlockContext struct {
+	htmlBlockType int
+	htmlIndent    int
+}
+
+type linkRefDefContext struct {
+	lrdWaiting bool
+	lrdBuf     []tokenizer.Token
+}
+
 func New() *Parser {
 	return &Parser{state: NormalState, lineContext: lineContext{lineStart: true}}
 }
@@ -71,6 +83,8 @@ func (p *Parser) Reset() {
 	p.tableContext = tableContext{}
 	p.setextContext = setextContext{}
 	p.linkContext = linkContext{}
+	p.htmlBlockContext = htmlBlockContext{}
+	p.linkRefDefContext = linkRefDefContext{}
 }
 
 func (p *Parser) Parse(tokens []tokenizer.Token) (events []Event) {
@@ -138,6 +152,12 @@ func (p *Parser) process() []Event {
 
 		case LinkURLState:
 			events = append(events, p.processLinkURL()...)
+
+		case HTMLBlockState:
+			events = append(events, p.processHTMLBlock()...)
+
+		case LinkRefDefState:
+			events = append(events, p.processLinkRefDef()...)
 		}
 
 		if p.bufferedLen() == prevLen && p.state == prevState {
@@ -264,6 +284,18 @@ func (p *Parser) processLineStartBlock(first tokenizer.Token) ([]Event, bool) {
 			return nil, true
 		}
 		return p.tryBulletOrBold(), true
+	}
+
+	if first.Type == tokenizer.TextToken {
+		if events, handled := p.tryHTMLBlock(); handled {
+			return events, true
+		}
+	}
+
+	if first.Type == tokenizer.LeftBracketToken {
+		if events, handled := p.tryLinkRefDef(); handled {
+			return events, true
+		}
 	}
 
 	return nil, false
@@ -654,6 +686,23 @@ func (p *Parser) bufferHasPattern() bool {
 	}
 	if p.buf[0].Type == tokenizer.AmpersandToken {
 		return true
+	}
+	if p.buf[0].Type == tokenizer.TextToken && p.lineStart && len(p.buf[0].Value) > 0 {
+		// Check for potential HTML block start patterns.
+		if p.buf[0].Value[0] == '<' {
+			return true
+		}
+		// Check for text token starting with spaces followed by digits (ordered list).
+		if p.buf[0].Value[0] == ' ' {
+			for _, c := range p.buf[0].Value {
+				if c >= '0' && c <= '9' {
+					return true
+				}
+				if c != ' ' {
+					break
+				}
+			}
+		}
 	}
 	return false
 }

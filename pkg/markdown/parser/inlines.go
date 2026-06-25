@@ -169,6 +169,10 @@ func (p *Parser) processLinkText() []Event {
 			p.state = LinkURLState
 			return nil
 		}
+		if p.buf[0].Type == tokenizer.LeftBracketToken {
+			p.linkBracketConsumed = false
+			return p.processLinkRefLabel()
+		}
 		return p.flushLinkAsText()
 	}
 
@@ -187,6 +191,9 @@ func (p *Parser) processLinkText() []Event {
 				p.consume(1)
 				p.state = LinkURLState
 				return nil
+			}
+			if p.buf[0].Type == tokenizer.LeftBracketToken {
+				return p.processLinkRefLabel()
 			}
 			return p.flushLinkAsText()
 		}
@@ -245,6 +252,36 @@ func (p *Parser) processLinkURL() []Event {
 		p.consume(1)
 		p.linkURLBuf = append(p.linkURLBuf, tok)
 	}
+	return nil
+}
+
+func (p *Parser) processLinkRefLabel() []Event {
+	p.consume(1)
+
+	var refLabel strings.Builder
+	for len(p.buf) > 0 {
+		tok := p.buf[0]
+		if tok.Type == tokenizer.NewlineToken {
+			p.prependTokens(tokenizer.Token{Type: tokenizer.LeftBracketToken, Value: "["})
+			return p.flushLinkAsText()
+		}
+		if tok.Type == tokenizer.RightBracketToken {
+			p.consume(1)
+			var textBuilder strings.Builder
+			for _, t := range p.linkBuf {
+				textBuilder.WriteString(t.Value)
+			}
+			textStr := resolveEntities(textBuilder.String())
+			labelStr := resolveEntities(refLabel.String())
+			p.linkBuf = nil
+			p.linkBracketConsumed = false
+			p.state = NormalState
+			return []Event{{Type: LinkRefEvent, Value: textStr, URL: labelStr}}
+		}
+		p.consume(1)
+		refLabel.WriteString(tok.Value)
+	}
+
 	return nil
 }
 

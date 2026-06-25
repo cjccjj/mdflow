@@ -189,6 +189,55 @@ func (w *Writer) Handle(e parser.Event) error {
 		_, err := w.aw.WriteString(")")
 		return err
 
+	case parser.HTMLBlockStartEvent:
+		_, err := w.aw.WriteString("\033[2m")
+		return err
+
+	case parser.HTMLBlockEndEvent:
+		_, err := w.aw.WriteString("\033[0m")
+		return err
+
+	case parser.LinkRefDefEvent:
+		if _, err := w.aw.WriteString("\033[2m[Link Def: "); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString(e.Value); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString(" \u2192 "); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString(e.URL); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString("]\033[0m"); err != nil {
+			return err
+		}
+		return nil
+
+	case parser.LinkRefEvent:
+		if _, err := w.aw.WriteString(w.theme.LinkText.Prefix); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString(e.Value); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString(w.theme.LinkText.Suffix); err != nil {
+			return err
+		}
+		if _, err := w.aw.WriteString(" [\u2192 "); err != nil {
+			return err
+		}
+		label := e.URL
+		if label == "" {
+			label = "ref"
+		}
+		if _, err := w.aw.WriteString(label); err != nil {
+			return err
+		}
+		_, err := w.aw.WriteString("]")
+		return err
+
 	default:
 		return nil
 	}

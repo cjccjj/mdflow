@@ -26,6 +26,10 @@ const (
 	BlockquoteStartEvent
 	BlockquoteEndEvent
 	LinkEvent
+	HTMLBlockStartEvent
+	HTMLBlockEndEvent
+	LinkRefDefEvent
+	LinkRefEvent
 )
 
 type Event struct {
@@ -86,6 +90,14 @@ func (e EventType) String() string {
 		return "BlockquoteEnd"
 	case LinkEvent:
 		return "Link"
+	case HTMLBlockStartEvent:
+		return "HTMLBlockStart"
+	case HTMLBlockEndEvent:
+		return "HTMLBlockEnd"
+	case LinkRefDefEvent:
+		return "LinkRefDef"
+	case LinkRefEvent:
+		return "LinkRef"
 	default:
 		return "Unknown"
 	}

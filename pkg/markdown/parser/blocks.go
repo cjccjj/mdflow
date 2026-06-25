@@ -746,6 +746,413 @@ func hasTextContent(tokens []tokenizer.Token) bool {
 	return false
 }
 
+func (p *Parser) tryHTMLBlock() ([]Event, bool) {
+	idx := 0
+	indent := 0
+
+	for idx < len(p.buf) {
+		tok := p.buf[idx]
+		if tok.Type == tokenizer.TextToken {
+			v := tok.Value
+			sp := 0
+			for sp < len(v) && v[sp] == ' ' {
+				sp++
+			}
+			if sp < len(v) {
+				break
+			}
+			indent += sp
+			idx++
+			if indent > 3 {
+				return nil, false
+			}
+		} else if tok.Type == tokenizer.TabToken {
+			indent = ((indent + 4) / 4) * 4
+			idx++
+			if indent > 3 {
+				return nil, false
+			}
+		} else {
+			break
+		}
+	}
+
+	if idx >= len(p.buf) {
+		return nil, false
+	}
+
+	first := p.buf[idx]
+	if first.Type != tokenizer.TextToken {
+		return nil, false
+	}
+	if len(first.Value) == 0 || first.Value[0] != '<' {
+		return nil, false
+	}
+
+	lineEnd := -1
+	for i := idx; i < len(p.buf); i++ {
+		if p.buf[i].Type == tokenizer.NewlineToken {
+			lineEnd = i
+			break
+		}
+	}
+	if lineEnd < 0 {
+		return nil, false
+	}
+
+	lineTokens := p.buf[idx:lineEnd]
+	fullText := rebuildLineText(lineTokens)
+
+	bt := getHTMLBlockType(fullText)
+	if bt == 0 {
+		return nil, false
+	}
+
+	p.consume(lineEnd + 1)
+
+	p.state = HTMLBlockState
+	p.htmlBlockType = bt
+	p.htmlIndent = indent
+	p.lineStart = true
+
+	var events []Event
+	events = append(events, Event{Type: HTMLBlockStartEvent})
+	for _, tok := range lineTokens {
+		events = append(events, Event{Type: TextEvent, Value: tok.Value})
+	}
+	events = append(events, Event{Type: TextEvent, Value: "\n"})
+
+	if checkHTMLEndCondition(fullText, bt) {
+		events = append(events, Event{Type: HTMLBlockEndEvent})
+		p.state = NormalState
+		p.htmlBlockType = 0
+		p.htmlIndent = 0
+	}
+
+	return events, true
+}
+
+func (p *Parser) processHTMLBlock() []Event {
+	if !p.hasNewline() {
+		return nil
+	}
+
+	tokens := collectTokensUpToNewline(p.buf)
+	trail := p.buf[len(tokens):]
+	hasNewline := len(trail) > 0 && trail[0].Type == tokenizer.NewlineToken
+
+	lineText := rebuildLineText(tokens)
+	endInfo := checkHTMLEndCondition(lineText, p.htmlBlockType)
+
+	p.consume(len(tokens))
+	if hasNewline {
+		p.consume(1)
+	}
+
+	var events []Event
+	for _, tok := range tokens {
+		events = append(events, Event{Type: TextEvent, Value: tok.Value})
+	}
+	if hasNewline {
+		events = append(events, Event{Type: TextEvent, Value: "\n"})
+	}
+
+	if endInfo {
+		events = append(events, Event{Type: HTMLBlockEndEvent})
+		p.state = NormalState
+		p.lineStart = true
+		p.htmlBlockType = 0
+		p.htmlIndent = 0
+	}
+
+	return events
+}
+
+func collectTokensUpToNewline(tokens []tokenizer.Token) []tokenizer.Token {
+	for i, tok := range tokens {
+		if tok.Type == tokenizer.NewlineToken {
+			return tokens[:i]
+		}
+	}
+	return tokens
+}
+
+func rebuildLineText(tokens []tokenizer.Token) string {
+	var b strings.Builder
+	for _, tok := range tokens {
+		b.WriteString(tok.Value)
+	}
+	return b.String()
+}
+
+func getHTMLBlockType(text string) int {
+	lower := strings.ToLower(text)
+
+	if strings.HasPrefix(text, "<![CDATA[") {
+		return 5
+	}
+
+	if strings.HasPrefix(text, "<!--") {
+		return 2
+	}
+
+	if strings.HasPrefix(text, "<?") {
+		return 3
+	}
+
+	if strings.HasPrefix(text, "<!") && len(text) > 2 && isASCIILetter(text[2]) {
+		return 4
+	}
+
+	blockStarters := []string{"<pre", "<script", "<style", "<textarea"}
+	for _, bs := range blockStarters {
+		if strings.HasPrefix(lower, bs) {
+			after := text[len(bs):]
+			if len(after) == 0 {
+				return 1
+			}
+			c := after[0]
+			if c == ' ' || c == '\t' || c == '>' {
+				return 1
+			}
+			return 0
+		}
+	}
+
+	return 0
+}
+
+func isASCIILetter(b byte) bool {
+	return (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')
+}
+
+func checkHTMLEndCondition(lineText string, blockType int) bool {
+	lower := strings.ToLower(lineText)
+
+	switch blockType {
+	case 1:
+		return strings.Contains(lower, "</pre>") ||
+			strings.Contains(lower, "</script>") ||
+			strings.Contains(lower, "</style>") ||
+			strings.Contains(lower, "</textarea>")
+	case 2:
+		return strings.Contains(lineText, "-->")
+	case 3:
+		return strings.Contains(lineText, "?>")
+	case 4:
+		return strings.Contains(lineText, ">")
+	case 5:
+		return strings.Contains(lineText, "]]>")
+	}
+	return true
+}
+
+func (p *Parser) tryLinkRefDef() ([]Event, bool) {
+	idx := 0
+	indent := 0
+
+	for idx < len(p.buf) {
+		tok := p.buf[idx]
+		if tok.Type == tokenizer.TextToken {
+			v := tok.Value
+			sp := 0
+			for sp < len(v) && v[sp] == ' ' {
+				sp++
+			}
+			if sp < len(v) {
+				break
+			}
+			indent += sp
+			idx++
+			if indent > 3 {
+				return nil, false
+			}
+		} else if tok.Type == tokenizer.TabToken {
+			indent = ((indent + 4) / 4) * 4
+			idx++
+			if indent > 3 {
+				return nil, false
+			}
+		} else {
+			break
+		}
+	}
+
+	if idx >= len(p.buf) || p.buf[idx].Type != tokenizer.LeftBracketToken {
+		return nil, false
+	}
+
+	lineEnd := -1
+	for i := idx; i < len(p.buf); i++ {
+		if p.buf[i].Type == tokenizer.NewlineToken {
+			lineEnd = i
+			break
+		}
+	}
+	if lineEnd < 0 {
+		return nil, false
+	}
+
+	lineTokens := p.buf[idx:lineEnd]
+	fullText := rebuildLineText(lineTokens)
+
+	label, url, _, ok := parseLinkRefDefLine(fullText)
+	if !ok {
+		return nil, false
+	}
+
+	p.consume(lineEnd + 1)
+	p.lineStart = true
+
+	if url == "" {
+		p.state = LinkRefDefState
+		p.lrdBuf = append(p.lrdBuf, lineTokens...)
+		p.lrdBuf = append(p.lrdBuf, tokenizer.Token{Type: tokenizer.NewlineToken, Value: "\n"})
+		p.lrdWaiting = false
+		return nil, true
+	}
+
+	return []Event{{Type: LinkRefDefEvent, Value: label, URL: url}}, true
+}
+
+func parseLinkRefDefLine(line string) (label, url, title string, ok bool) {
+	line = strings.TrimLeft(line, " \t")
+	if len(line) == 0 || line[0] != '[' {
+		return "", "", "", false
+	}
+
+	closeBracket := findUnescapedBracket(line[1:])
+	if closeBracket < 0 {
+		return "", "", "", false
+	}
+	closeBracket++
+	label = line[1:closeBracket]
+
+	afterLabel := strings.TrimLeft(line[closeBracket+1:], " \t")
+	if len(afterLabel) == 0 || afterLabel[0] != ':' {
+		return "", "", "", false
+	}
+
+	rest := strings.TrimLeft(afterLabel[1:], " \t")
+	if len(rest) == 0 {
+		return label, "", "", true
+	}
+
+	urlEnd := 0
+	if len(rest) > 0 && rest[0] == '<' {
+		closeAngle := strings.IndexByte(rest[1:], '>')
+		if closeAngle < 0 {
+			return "", "", "", false
+		}
+		url = rest[1 : 1+closeAngle]
+		urlEnd = 1 + closeAngle + 1
+	} else {
+		for urlEnd < len(rest) {
+			c := rest[urlEnd]
+			if c == ' ' || c == '\t' || c == '\n' {
+				break
+			}
+			urlEnd++
+		}
+		url = rest[:urlEnd]
+	}
+
+	titlePart := strings.TrimLeft(rest[urlEnd:], " \t")
+	if len(titlePart) == 0 {
+		return label, url, "", true
+	}
+
+	q := titlePart[0]
+	if q == '"' || q == '\'' || q == '(' {
+		var close byte
+		switch q {
+		case '"':
+			close = '"'
+		case '\'':
+			close = '\''
+		case '(':
+			close = ')'
+		}
+		closeIdx := -1
+		for i := 1; i < len(titlePart); i++ {
+			if titlePart[i] == close && (i == 1 || titlePart[i-1] != '\\') {
+				closeIdx = i
+				break
+			}
+		}
+		if closeIdx < 0 {
+			return "", "", "", false
+		}
+		title = titlePart[1:closeIdx]
+		afterTitle := strings.TrimLeft(titlePart[closeIdx+1:], " \t")
+		if len(afterTitle) > 0 {
+			return "", "", "", false
+		}
+		return label, url, title, true
+	}
+
+	return label, url, "", true
+}
+
+func findUnescapedBracket(s string) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			i++
+			continue
+		}
+		if s[i] == ']' {
+			return i
+		}
+	}
+	return -1
+}
+
+func (p *Parser) processLinkRefDef() []Event {
+	if !p.hasNewline() {
+		return nil
+	}
+
+	tokens := collectTokensUpToNewline(p.buf)
+	if len(tokens) == 0 || isBlankLineTokens(tokens) {
+		if len(p.buf) > 0 && p.buf[0].Type == tokenizer.NewlineToken {
+			p.consume(1)
+		}
+		return p.flushLinkRefDef()
+	}
+
+	p.consume(len(tokens))
+	if len(p.buf) > 0 && p.buf[0].Type == tokenizer.NewlineToken {
+		p.consume(1)
+	}
+
+	p.lrdBuf = append(p.lrdBuf, tokens...)
+
+	fullText := rebuildLineText(p.lrdBuf)
+	label, url, _, ok := parseLinkRefDefLine(fullText)
+	if ok && url != "" {
+		p.lrdBuf = nil
+		p.lrdWaiting = false
+		p.state = NormalState
+		p.lineStart = true
+		return []Event{{Type: LinkRefDefEvent, Value: label, URL: url}}
+	}
+
+	p.lineStart = true
+	return nil
+}
+
+func (p *Parser) flushLinkRefDef() []Event {
+	var events []Event
+	for _, tok := range p.lrdBuf {
+		events = append(events, Event{Type: TextEvent, Value: tok.Value})
+	}
+	p.lrdBuf = nil
+	p.lrdWaiting = false
+	p.state = NormalState
+	p.lineStart = true
+	return events
+}
+
 func (p *Parser) checkSetextUnderline() (int, bool) {
 	n := len(p.buf)
 	if n < 2 {

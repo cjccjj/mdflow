@@ -17,4 +17,6 @@ const (
 	SetextPendingState
 	LinkTextState
 	LinkURLState
+	HTMLBlockState
+	LinkRefDefState
 )
