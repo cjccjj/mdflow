@@ -538,49 +538,188 @@ func (p *Parser) tryBlockquote() []Event {
 
 func (p *Parser) processBlockquote() []Event {
 	var events []Event
+
+	// Handle re-entry after a chunk boundary: we are still in BlockquoteState
+	// and at lineStart. Decide whether this line continues or terminates the blockquote.
+	if p.lineStart && len(p.buf) > 0 {
+		first := p.buf[0]
+
+		// An empty blockquote line (> followed by nothing) followed by a
+		// non-> line ends the blockquote (CommonMark Ex 249).
+		if p.blockquoteHadBlank && first.Type != tokenizer.GreaterToken {
+			p.blockquoteHadBlank = false
+			p.state = NormalState
+			events = append(events, Event{Type: BlockquoteEndEvent})
+			events = append(events, Event{Type: NewlineEvent})
+			return events
+		}
+		p.blockquoteHadBlank = false
+
+		if first.Type == tokenizer.GreaterToken {
+			// Check for empty blockquote line: >\n
+			if len(p.buf) >= 2 && p.buf[1].Type == tokenizer.NewlineToken {
+				p.consume(2) // consume > and newline
+				p.lineStart = true
+				p.blockquoteHadBlank = true
+				events = append(events, Event{Type: NewlineEvent})
+				return events
+			}
+			// Explicit blockquote marker on continuation line (cross-chunk).
+			events = append(events, Event{Type: NewlineEvent})
+			events = append(events, p.consumeBlockquoteMarker()...)
+			if len(p.buf) == 0 {
+				return events
+			}
+		} else if first.Type == tokenizer.NewlineToken {
+			// Blank line — ends the blockquote (BlockquoteEndEvent before
+			// NewlineEvent so the renderer does not prefix the next line).
+			p.state = NormalState
+			events = append(events, Event{Type: BlockquoteEndEvent})
+			events = append(events, Event{Type: NewlineEvent})
+			return events
+		} else if isBlockquoteTerminator(first) {
+			// Block construct (heading, HR, list, code fence, etc.) — ends the blockquote.
+			p.state = NormalState
+			events = append(events, Event{Type: BlockquoteEndEvent})
+			events = append(events, Event{Type: NewlineEvent})
+			return events
+		} else {
+			// Lazy continuation: paragraph continuation text.
+			events = append(events, Event{Type: NewlineEvent})
+			p.lineStart = false
+		}
+	}
+
 	for len(p.buf) > 0 {
 		tok := p.buf[0]
 		if tok.Type == tokenizer.NewlineToken {
 			p.consume(1)
 			p.lineStart = true
 			if len(p.buf) > 0 && p.buf[0].Type == tokenizer.GreaterToken {
-				events = append(events, Event{Type: NewlineEvent})
-				p.consume(1)
-				if len(p.buf) > 0 && hasStructuralWhitespace(p.buf[0]) {
-					tok := p.buf[0]
-					p.consume(1)
-					p.lineStart = false
-					if tok.Type == tokenizer.TabToken {
-						p.contentIndent = tabRemainingEquiv(1)
-					} else if tok.Type == tokenizer.TextToken {
-						val := strings.TrimPrefix(tok.Value, " ")
-						if val != "" {
-							events = append(events, Event{Type: TextEvent, Value: val})
+				// Check for empty blockquote line: >\n
+				if len(p.buf) >= 2 && p.buf[1].Type == tokenizer.NewlineToken {
+					p.consume(2) // consume > and newline
+					p.lineStart = true
+					events = append(events, Event{Type: NewlineEvent})
+					events = append(events, Event{Type: NewlineEvent})
+					// Check whether the next line is non-> (terminates blockquote).
+					if len(p.buf) > 0 && p.buf[0].Type != tokenizer.GreaterToken {
+						if isBlockquoteTerminator(p.buf[0]) {
+							p.state = NormalState
+							events = append(events, Event{Type: BlockquoteEndEvent})
+							events = append(events, Event{Type: NewlineEvent})
+							return events
 						}
+						// Otherwise lazy continuation — but after an empty
+						// blockquote line, any non-> line ends the blockquote.
+						p.state = NormalState
+						events = append(events, Event{Type: BlockquoteEndEvent})
+						events = append(events, Event{Type: NewlineEvent})
+						return events
 					}
-				} else {
-					p.lineStart = false
+					return events
 				}
+				events = append(events, Event{Type: NewlineEvent})
+				events = append(events, p.consumeBlockquoteMarker()...)
 				return events
 			}
-			// Blockquote ends here — close before the newline so the next
-			// block is not rendered with the blockquote prefix.
-			//
-			// Note: a true lazy continuation line (CommonMark) would keep the
-			// blockquote open, but the streaming pipeline feeds input
-			// line-by-line, so the next line is not yet available here. Lazy
-			// continuation across chunk boundaries is therefore a known
-			// limitation (see Ex 93).
-			p.state = NormalState
-			events = append(events, Event{Type: BlockquoteEndEvent})
+			// Buffer is empty (chunk boundary) — keep blockquote open, wait for next chunk.
+			if len(p.buf) == 0 {
+				return events
+			}
+			// Next token is not >.  Check whether the line terminates the blockquote.
+			if p.buf[0].Type == tokenizer.NewlineToken {
+				// Blank line ends the blockquote (BlockquoteEndEvent before
+				// NewlineEvent so the renderer does not prefix the next line).
+				p.state = NormalState
+				events = append(events, Event{Type: BlockquoteEndEvent})
+				events = append(events, Event{Type: NewlineEvent})
+				return events
+			}
+			if isBlockquoteTerminator(p.buf[0]) {
+				p.state = NormalState
+				events = append(events, Event{Type: BlockquoteEndEvent})
+				events = append(events, Event{Type: NewlineEvent})
+				return events
+			}
+			// Lazy continuation: the next line is paragraph continuation text.
 			events = append(events, Event{Type: NewlineEvent})
-			return events
+			// Fall through to consume continuation tokens.
+			continue
 		}
 		p.consume(1)
 		p.lineStart = false
 		events = append(events, Event{Type: TextEvent, Value: tok.Value})
 	}
 	return events
+}
+
+// consumeBlockquoteMarker consumes a > token (and optional following space/tab)
+// and returns the appropriate events. Used both for the initial tryBlockquote path
+// and for explicit > markers on continuation lines when re-entering after a chunk
+// boundary.
+func (p *Parser) consumeBlockquoteMarker() []Event {
+	var events []Event
+	p.consume(1) // consume >
+	if len(p.buf) > 0 && hasStructuralWhitespace(p.buf[0]) {
+		tok := p.buf[0]
+		p.consume(1)
+		p.lineStart = false
+		if tok.Type == tokenizer.TabToken {
+			p.contentIndent = tabRemainingEquiv(1)
+		} else if tok.Type == tokenizer.TextToken {
+			val := strings.TrimPrefix(tok.Value, " ")
+			if val != "" {
+				events = append(events, Event{Type: TextEvent, Value: val})
+			}
+		}
+	} else {
+		p.lineStart = false
+	}
+	return events
+}
+
+// isBlockquoteTerminator reports whether tok starts a line that would end a
+// blockquote (i.e. a block-level construct, not paragraph continuation text).
+func isBlockquoteTerminator(tok tokenizer.Token) bool {
+	switch tok.Type {
+	case tokenizer.HashToken, tokenizer.DashToken, tokenizer.PipeToken,
+		tokenizer.BacktickToken, tokenizer.TildeToken, tokenizer.TabToken,
+		tokenizer.GreaterToken:
+		return true
+	case tokenizer.StarToken, tokenizer.UnderscoreToken:
+		// These could be emphasis or HR/bullet.  Conservatively treat as
+		// terminators — emphasis-at-line-start inside a lazy continuation is
+		// an edge case that can be refined later.
+		return true
+	case tokenizer.LeftBracketToken:
+		return true // link reference definition
+	case tokenizer.TextToken:
+		v := tok.Value
+		if len(v) > 0 && v[0] == '<' {
+			return true // HTML block
+		}
+		if sp := leadingSpaceCount(v); sp >= 4 {
+			rest := v[sp:]
+			if rest == "" {
+				return false // pure whitespace — not a terminator
+			}
+			// If the text after indentation is a list marker, it is
+			// paragraph continuation text, not an indented code block
+			// (indented code blocks cannot interrupt paragraphs).
+			if _, ok := orderedListPrefix(rest); ok {
+				return false
+			}
+			if len(rest) > 0 && (rest[0] == '-' || rest[0] == '*') && len(rest) > 1 && rest[1] == ' ' {
+				return false // bullet-like → paragraph continuation
+			}
+			return true // indented code block
+		}
+		if _, ok := orderedListPrefix(v); ok {
+			return true // ordered list
+		}
+	}
+	return false
 }
 
 func (p *Parser) processSetextPending() []Event {

@@ -31,11 +31,12 @@ type lineContext struct {
 }
 
 type blockContext struct {
-	headerLvl       int
-	fenceLen        int
-	fenceChar       tokenizer.TokenType
-	codeBlockFirst  bool
-	codeBlockIndent int
+	headerLvl            int
+	fenceLen             int
+	fenceChar            tokenizer.TokenType
+	codeBlockFirst       bool
+	codeBlockIndent      int
+	blockquoteHadBlank   bool
 }
 
 type emphasisContext struct {
