@@ -11,12 +11,22 @@ func isASCIIPunctByte(b byte) bool {
 		(b >= 0x7B && b <= 0x7E)
 }
 
-func hasMatchingCloser(tokens []tokenizer.Token, tt tokenizer.TokenType, n int) bool {
+func hasMatchingCloser(tokens []tokenizer.Token, tt tokenizer.TokenType, n int, spanNewlines bool) bool {
 	runLen := 0
+	newlineStreak := 0
 	for _, tok := range tokens {
 		if tok.Type == tokenizer.NewlineToken {
-			return false
+			if !spanNewlines {
+				return false
+			}
+			newlineStreak++
+			if newlineStreak >= 2 {
+				return false
+			}
+			runLen = 0
+			continue
 		}
+		newlineStreak = 0
 		if tok.Type == tt {
 			runLen++
 			if runLen == n {
@@ -37,6 +47,12 @@ func (p *Parser) handleBackslash() []Event {
 	}
 
 	second := p.buf[1]
+	// Hard line break: backslash immediately followed by a newline.
+	if second.Type == tokenizer.NewlineToken {
+		p.consume(2)
+		p.lineStart = true
+		return []Event{{Type: NewlineEvent}}
+	}
 	if len(second.Value) == 0 || !isASCIIPunctByte(second.Value[0]) {
 		p.consume(1)
 		p.lineStart = false

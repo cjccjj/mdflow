@@ -96,7 +96,7 @@ func (p *Parser) tryBulletOrBold() []Event {
 	}
 	matched, waiting := p.checkConsecutive(tokenizer.StarToken, 2)
 	if matched {
-		if !hasMatchingCloser(p.buf[2:], tokenizer.StarToken, 2) && hasNewlineIn(p.buf[2:]) {
+		if !hasMatchingCloser(p.buf[2:], tokenizer.StarToken, 2, true) && hasNewlineIn(p.buf[2:]) {
 			p.consume(2)
 			p.lineStart = false
 			return []Event{{Type: TextEvent, Value: "**"}}
@@ -346,8 +346,8 @@ func (p *Parser) processBlockquote() []Event {
 		if tok.Type == tokenizer.NewlineToken {
 			p.consume(1)
 			p.lineStart = true
-			events = append(events, Event{Type: NewlineEvent})
 			if len(p.buf) > 0 && p.buf[0].Type == tokenizer.GreaterToken {
+				events = append(events, Event{Type: NewlineEvent})
 				p.consume(1)
 				if len(p.buf) > 0 && hasStructuralWhitespace(p.buf[0]) {
 					tok := p.buf[0]
@@ -366,8 +366,17 @@ func (p *Parser) processBlockquote() []Event {
 				}
 				return events
 			}
+			// Blockquote ends here — close before the newline so the next
+			// block is not rendered with the blockquote prefix.
+			//
+			// Note: a true lazy continuation line (CommonMark) would keep the
+			// blockquote open, but the streaming pipeline feeds input
+			// line-by-line, so the next line is not yet available here. Lazy
+			// continuation across chunk boundaries is therefore a known
+			// limitation (see Ex 93).
 			p.state = NormalState
 			events = append(events, Event{Type: BlockquoteEndEvent})
+			events = append(events, Event{Type: NewlineEvent})
 			return events
 		}
 		p.consume(1)
@@ -378,11 +387,12 @@ func (p *Parser) processBlockquote() []Event {
 }
 
 func (p *Parser) processSetextPending() []Event {
+	// First call: collect the first content line.
 	if !p.setextWaiting {
 		if !p.hasNewline() {
 			return nil
 		}
-		p.setextBuf = p.collectLineTokens()
+		p.setextBuf = stripLeadingSpaces(p.collectLineTokens(), 3)
 		p.setextWaiting = true
 		return nil
 	}
@@ -393,18 +403,15 @@ func (p *Parser) processSetextPending() []Event {
 
 	level, ok := p.checkSetextUnderline()
 	if ok {
-		if !hasTextContent(p.setextBuf) {
-			events := p.parseInlineLine(p.setextBuf)
-			events = append(events, Event{Type: NewlineEvent})
-			p.setextBuf = nil
-			p.setextWaiting = false
-			p.state = NormalState
-			return events
-		}
+		content := stripTrailingWhitespace(p.setextBuf)
 		var events []Event
-		events = append(events, Event{Type: HeaderStartEvent, Level: level})
-		events = append(events, p.parseInlineLine(p.setextBuf)...)
-		events = append(events, Event{Type: HeaderEndEvent})
+		if hasTextContent(content) {
+			events = append(events, Event{Type: HeaderStartEvent, Level: level})
+		}
+		events = append(events, p.parseInlineLine(content)...)
+		if hasTextContent(content) {
+			events = append(events, Event{Type: HeaderEndEvent})
+		}
 		events = append(events, Event{Type: NewlineEvent})
 		p.setextBuf = nil
 		p.setextWaiting = false
@@ -412,12 +419,93 @@ func (p *Parser) processSetextPending() []Event {
 		return events
 	}
 
-	events := p.parseInlineLine(p.setextBuf)
-	events = append(events, Event{Type: NewlineEvent})
-	p.setextBuf = nil
-	p.setextWaiting = false
-	p.state = NormalState
-	return events
+	// Not an underline. A blank line ends the setext attempt.
+	if p.buf[0].Type == tokenizer.NewlineToken {
+		p.consume(1)
+		p.lineStart = true
+		events := p.parseInlineLine(p.setextBuf)
+		events = append(events, Event{Type: NewlineEvent})
+		events = append(events, Event{Type: NewlineEvent})
+		p.setextBuf = nil
+		p.setextWaiting = false
+		p.state = NormalState
+		return events
+	}
+
+	// A line starting with a block construct interrupts the setext heading.
+	first := p.buf[0]
+	if !isContinuationText(first) {
+		events := p.parseInlineLine(p.setextBuf)
+		events = append(events, Event{Type: NewlineEvent})
+		p.setextBuf = nil
+		p.setextWaiting = false
+		p.state = NormalState
+		return events
+	}
+
+	// Otherwise, append this line to the heading content (multi-line setext).
+	lineTokens := p.collectLineTokens()
+	p.setextBuf = append(p.setextBuf, tokenizer.Token{Type: tokenizer.NewlineToken, Value: "\n"})
+	p.setextBuf = append(p.setextBuf, lineTokens...)
+	return nil
+}
+
+func isContinuationText(tok tokenizer.Token) bool {
+	if tok.Type != tokenizer.TextToken {
+		return false
+	}
+	for _, r := range tok.Value {
+		if r != ' ' && r != '\t' {
+			return true
+		}
+	}
+	return false
+}
+
+func stripLeadingSpaces(tokens []tokenizer.Token, max int) []tokenizer.Token {
+	if len(tokens) == 0 {
+		return tokens
+	}
+	first := tokens[0]
+	if first.Type != tokenizer.TextToken {
+		return tokens
+	}
+	v := first.Value
+	trimmed := 0
+	for trimmed < len(v) && trimmed < max && v[trimmed] == ' ' {
+		trimmed++
+	}
+	if trimmed == 0 {
+		return tokens
+	}
+	rest := v[trimmed:]
+	if rest == "" {
+		return tokens[1:]
+	}
+	tokens[0] = tokenizer.Token{Type: tokenizer.TextToken, Value: rest}
+	return tokens
+}
+
+func stripTrailingWhitespace(tokens []tokenizer.Token) []tokenizer.Token {
+	for len(tokens) > 0 {
+		last := tokens[len(tokens)-1]
+		if last.Type == tokenizer.TabToken {
+			tokens = tokens[:len(tokens)-1]
+			continue
+		}
+		if last.Type == tokenizer.TextToken {
+			t := strings.TrimRight(last.Value, " \t")
+			if t == "" {
+				tokens = tokens[:len(tokens)-1]
+				continue
+			}
+			if t != last.Value {
+				tokens[len(tokens)-1] = tokenizer.Token{Type: tokenizer.TextToken, Value: t}
+			}
+		}
+		break
+	}
+	return tokens
 }
 
 func (p *Parser) collectLineTokens() []tokenizer.Token {
@@ -462,51 +550,106 @@ func hasTextContent(tokens []tokenizer.Token) bool {
 }
 
 func (p *Parser) checkSetextUnderline() (int, bool) {
-	if len(p.buf) < 2 {
+	n := len(p.buf)
+	if n < 2 {
 		return 0, false
 	}
 
-	first := p.buf[0]
-
-	if first.Type == tokenizer.TextToken {
-		t := strings.TrimRight(first.Value, " \t")
-		if len(t) >= 3 {
-			allEq := true
-			for _, ch := range t {
-				if ch != '=' {
-					allEq = false
-					break
-				}
+	// Scan the underline line without consuming (consume only on success).
+	idx := 0
+	// Skip up to 3 spaces / tabs of leading indentation on the underline.
+	indent := 0
+	for idx < n {
+		tok := p.buf[idx]
+		if tok.Type == tokenizer.TabToken {
+			indent = ((indent + 4) / 4) * 4
+			if indent > 3 {
+				return 0, false
 			}
-			if allEq {
-				p.consume(1)
-				if len(p.buf) > 0 && p.buf[0].Type == tokenizer.NewlineToken {
-					p.consume(1)
-					p.lineStart = true
-					return 1, true
-				}
-			}
+			idx++
+			continue
 		}
+		if tok.Type == tokenizer.TextToken {
+			sp := 0
+			for sp < len(tok.Value) && tok.Value[sp] == ' ' {
+				sp++
+			}
+			if sp == len(tok.Value) && sp > 0 {
+				indent += sp
+				if indent > 3 {
+					return 0, false
+				}
+				idx++
+				continue
+			}
+			break
+		}
+		break
+	}
+	if idx >= n {
+		return 0, false
 	}
 
-	if first.Type == tokenizer.DashToken {
-		matched, waiting := p.checkConsecutive(tokenizer.DashToken, 3)
-		if waiting {
+	// Determine the underline marker and verify the rest of the line.
+	level := 0
+	markerEnd := idx
+	tok := p.buf[idx]
+	if tok.Type == tokenizer.TextToken {
+		// '=' underline: leading spaces may be embedded in this token.
+		v := tok.Value
+		lead := 0
+		for lead < len(v) && v[lead] == ' ' {
+			lead++
+		}
+		if lead > 3-indent {
 			return 0, false
 		}
-		if matched {
-			n := p.countConsecutive(tokenizer.DashToken)
-			p.consume(n)
-			if len(p.buf) > 0 && p.buf[0].Type == tokenizer.TextToken && strings.TrimSpace(p.buf[0].Value) == "" {
-				p.consume(1)
-			}
-			if len(p.buf) > 0 && p.buf[0].Type == tokenizer.NewlineToken {
-				p.consume(1)
-				p.lineStart = true
-				return 2, true
+		rest := strings.TrimRight(v[lead:], " \t")
+		if rest == "" {
+			return 0, false
+		}
+		for _, c := range rest {
+			if c != '=' {
+				return 0, false
 			}
 		}
+		level = 1
+		markerEnd = idx + 1
+	} else if tok.Type == tokenizer.DashToken {
+		count := 0
+		for markerEnd < n && p.buf[markerEnd].Type == tokenizer.DashToken {
+			markerEnd++
+			count++
+		}
+		if count == 0 {
+			return 0, false
+		}
+		level = 2
+	} else {
+		return 0, false
 	}
 
-	return 0, false
+	// Skip trailing spaces/tabs after the marker.
+	for markerEnd < n {
+		t := p.buf[markerEnd]
+		if t.Type == tokenizer.TabToken {
+			markerEnd++
+			continue
+		}
+		if t.Type == tokenizer.TextToken && len(strings.TrimRight(t.Value, " \t")) == 0 {
+			markerEnd++
+			continue
+		}
+		break
+	}
+
+	// The line must end with a newline.
+	if markerEnd >= n || p.buf[markerEnd].Type != tokenizer.NewlineToken {
+		return 0, false
+	}
+
+	// Success: consume up to and including the newline.
+	p.consume(markerEnd + 1)
+	p.lineStart = true
+	return level, true
 }

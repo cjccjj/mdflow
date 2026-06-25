@@ -273,7 +273,7 @@ func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
 		}
 		matched, waiting = p.checkConsecutive(tokenizer.StarToken, 2)
 		if matched {
-			if !hasMatchingCloser(p.buf[2:], tokenizer.StarToken, 2) && hasNewlineIn(p.buf[2:]) {
+			if !hasMatchingCloser(p.buf[2:], tokenizer.StarToken, 2, true) && hasNewlineIn(p.buf[2:]) {
 				p.consume(2)
 				p.lineStart = false
 				return []Event{{Type: TextEvent, Value: "**"}}, true
@@ -286,7 +286,7 @@ func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
 		if waiting {
 			return nil, true
 		}
-		if !hasMatchingCloser(p.buf[1:], tokenizer.StarToken, 1) {
+		if !hasMatchingCloser(p.buf[1:], tokenizer.StarToken, 1, true) {
 			p.consume(1)
 			p.lineStart = false
 			return []Event{{Type: TextEvent, Value: "*"}}, true
@@ -307,7 +307,7 @@ func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
 		}
 		matched, waiting = p.checkConsecutive(tokenizer.UnderscoreToken, 2)
 		if matched {
-			if !hasMatchingCloser(p.buf[2:], tokenizer.UnderscoreToken, 2) && hasNewlineIn(p.buf[2:]) {
+			if !hasMatchingCloser(p.buf[2:], tokenizer.UnderscoreToken, 2, true) && hasNewlineIn(p.buf[2:]) {
 				p.consume(2)
 				p.lineStart = false
 				return []Event{{Type: TextEvent, Value: "__"}}, true
@@ -320,7 +320,7 @@ func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
 		if waiting {
 			return nil, true
 		}
-		if !hasMatchingCloser(p.buf[1:], tokenizer.UnderscoreToken, 1) {
+		if !hasMatchingCloser(p.buf[1:], tokenizer.UnderscoreToken, 1, true) {
 			p.consume(1)
 			p.lineStart = false
 			return []Event{{Type: TextEvent, Value: "_"}}, true
@@ -378,7 +378,7 @@ func (p *Parser) processBacktickStart() ([]Event, bool) {
 	if n == len(p.buf) && !p.eof {
 		return nil, true
 	}
-	if n == 1 && !hasMatchingCloser(p.buf[n:], tokenizer.BacktickToken, n) {
+	if n == 1 && !hasMatchingCloser(p.buf[n:], tokenizer.BacktickToken, n, false) {
 		p.consume(n)
 		p.lineStart = false
 		var events []Event

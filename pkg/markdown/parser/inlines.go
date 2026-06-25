@@ -57,12 +57,9 @@ func (p *Parser) processItalic() []Event {
 		}
 		if tok.Type == tokenizer.NewlineToken {
 			p.consume(1)
-			p.italicOpener = 0
-			p.state = NormalState
+			events = append(events, Event{Type: TextEvent, Value: tok.Value})
 			p.lineStart = true
-			events = append(events, Event{Type: ItalicEndEvent})
-			events = append(events, Event{Type: NewlineEvent})
-			return events
+			continue
 		}
 		p.consume(1)
 		events = append(events, Event{Type: TextEvent, Value: tok.Value})

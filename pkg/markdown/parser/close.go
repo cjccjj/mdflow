@@ -113,7 +113,8 @@ func (p *Parser) finalizeState(mode finalizeMode) []Event {
 
 func (p *Parser) flushSetext() []Event {
 	var out []Event
-	out = append(out, p.parseInlineLine(p.setextBuf)...)
+	content := stripTrailingWhitespace(p.setextBuf)
+	out = append(out, p.parseInlineLine(content)...)
 	out = append(out, Event{Type: NewlineEvent})
 	p.setextBuf = nil
 	p.setextWaiting = false

@@ -15,17 +15,8 @@ func Tokenize(input []byte) []Token {
 		b := input[i]
 		switch b {
 		case '\\':
-			if i+1 < len(input) && (input[i+1] == '\n' || input[i+1] == '\r') {
-				i++
-				if input[i] == '\r' && i+1 < len(input) && input[i+1] == '\n' {
-					i++
-				}
-				flushText()
-				tokens = append(tokens, Token{Type: NewlineToken, Value: "\n"})
-			} else {
-				flushText()
-				tokens = append(tokens, Token{Type: BackslashToken, Value: "\\"})
-			}
+			flushText()
+			tokens = append(tokens, Token{Type: BackslashToken, Value: "\\"})
 		case '\n':
 			flushText()
 			tokens = append(tokens, Token{Type: NewlineToken, Value: "\n"})

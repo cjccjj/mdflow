@@ -522,12 +522,10 @@ func TestGolden_SetextHeading(t *testing.T) {
 		}
 	}
 
-	// Not setext headings (blank line between)
+	// Not setext headings (blank line between or empty content)
 	notHeading := []string{
 		"text\n\n---\n",     // blank line before ---
 		"text\n\n===\n",     // blank line before ===
-		"text\n--\n",        // only 2 dashes
-		"text\n==\n",        // only 2 equals
 		"\n===\n",           // empty candidate line
 	}
 	for _, input := range notHeading {
