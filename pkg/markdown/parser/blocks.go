@@ -113,6 +113,16 @@ func (p *Parser) tryBulletOrBold() []Event {
 		}
 		return events
 	}
+	starCount := p.countConsecutive(tokenizer.StarToken)
+	if starCount >= 3 && len(p.buf) > 2 && p.buf[1].Type == tokenizer.StarToken && p.buf[2].Type == tokenizer.StarToken &&
+		hasMatchingCloser(p.buf[3:], tokenizer.StarToken, 3, true) {
+		p.consume(3)
+		p.pushEmphasis(emphasisFrame{state: ItalicState, closerType: tokenizer.StarToken, closerLen: 1})
+		p.pushEmphasis(emphasisFrame{state: BoldState, closerType: tokenizer.StarToken, closerLen: 2})
+		p.lineStart = false
+		return []Event{{Type: ItalicStartEvent}, {Type: BoldStartEvent}}
+	}
+
 	matched, waiting := p.checkConsecutive(tokenizer.StarToken, 2)
 	if matched {
 		if !hasMatchingCloser(p.buf[2:], tokenizer.StarToken, 2, true) && hasNewlineIn(p.buf[2:]) {
@@ -121,8 +131,7 @@ func (p *Parser) tryBulletOrBold() []Event {
 			return []Event{{Type: TextEvent, Value: "**"}}
 		}
 		p.consume(2)
-		p.state = BoldState
-		p.boldOpener = tokenizer.StarToken
+		p.pushEmphasis(emphasisFrame{state: BoldState, closerType: tokenizer.StarToken, closerLen: 2})
 		p.lineStart = false
 		return []Event{{Type: BoldStartEvent}}
 	}
@@ -132,8 +141,7 @@ func (p *Parser) tryBulletOrBold() []Event {
 	if len(p.buf) >= 3 && p.buf[1].Type == tokenizer.TextToken &&
 		!strings.HasPrefix(p.buf[1].Value, " ") && p.buf[2].Type == tokenizer.StarToken {
 		p.consume(1)
-		p.state = ItalicState
-		p.italicOpener = tokenizer.StarToken
+		p.pushEmphasis(emphasisFrame{state: ItalicState, closerType: tokenizer.StarToken, closerLen: 1})
 		p.lineStart = false
 		return []Event{{Type: ItalicStartEvent}}
 	}

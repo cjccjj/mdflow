@@ -32,65 +32,12 @@ func (p *Parser) tryThematicBreak() ([]Event, bool) {
 
 // tryStarEmphasis handles *-based bold and italic.
 func (p *Parser) tryStarEmphasis() ([]Event, bool) {
-	matched, waiting := p.checkConsecutive(tokenizer.StarToken, 2)
-	if matched {
-		if !hasMatchingCloser(p.buf[2:], tokenizer.StarToken, 2, true) && hasNewlineIn(p.buf[2:]) {
-			p.consume(2)
-			p.lineStart = false
-			return []Event{{Type: TextEvent, Value: "**"}}, true
-		}
-		p.consume(2)
-		p.enterState(BoldState)
-		p.boldOpener = tokenizer.StarToken
-		return []Event{{Type: BoldStartEvent}}, true
-	}
-	if waiting {
-		return nil, true
-	}
-
-	if !hasMatchingCloser(p.buf[1:], tokenizer.StarToken, 1, true) {
-		p.consume(1)
-		p.lineStart = false
-		return []Event{{Type: TextEvent, Value: "*"}}, true
-	}
-	p.consume(1)
-	p.enterState(ItalicState)
-	p.italicOpener = tokenizer.StarToken
-	return []Event{{Type: ItalicStartEvent}}, true
+	return p.tryEmphasisStar()
 }
 
 // tryUnderscoreEmphasis handles _-based bold and italic.
 func (p *Parser) tryUnderscoreEmphasis() ([]Event, bool) {
-	matched, waiting := p.checkConsecutive(tokenizer.UnderscoreToken, 2)
-	if matched {
-		if !hasMatchingCloser(p.buf[2:], tokenizer.UnderscoreToken, 2, true) && hasNewlineIn(p.buf[2:]) {
-			p.consume(2)
-			p.lineStart = false
-			return []Event{{Type: TextEvent, Value: "__"}}, true
-		}
-		p.consume(2)
-		p.enterState(BoldState)
-		p.boldOpener = tokenizer.UnderscoreToken
-		return []Event{{Type: BoldStartEvent}}, true
-	}
-	if waiting {
-		return nil, true
-	}
-
-	if !hasMatchingCloser(p.buf[1:], tokenizer.UnderscoreToken, 1, true) {
-		p.consume(1)
-		p.lineStart = false
-		return []Event{{Type: TextEvent, Value: "_"}}, true
-	}
-	if !isLeftFlanking(p.buf) {
-		p.consume(1)
-		p.lineStart = false
-		return []Event{{Type: TextEvent, Value: "_"}}, true
-	}
-	p.consume(1)
-	p.enterState(ItalicState)
-	p.italicOpener = tokenizer.UnderscoreToken
-	return []Event{{Type: ItalicStartEvent}}, true
+	return p.tryEmphasisUnderscore()
 }
 
 // tryOrderedList checks for an ordered list prefix (like "1. " or "2) ").
@@ -167,7 +114,7 @@ func (p *Parser) tryBacktickInline() ([]Event, bool) {
 
 // tryTildeInline handles strikethrough via tildes.
 func (p *Parser) tryTildeInline() ([]Event, bool) {
-	return p.processTildeStart()
+	return p.tryEmphasisTilde()
 }
 
 // tryEscapeOrEntity handles backslash escapes and & entities.

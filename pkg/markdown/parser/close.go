@@ -52,6 +52,10 @@ func (p *Parser) safeFlush() []Event {
 func (p *Parser) finalizeState(mode finalizeMode) []Event {
 	var out []Event
 
+	if mode != finalizeFlush && len(p.emphStack) > 0 {
+		out = append(out, p.drainEmphasisStack()...)
+	}
+
 	switch p.state {
 	case HeaderState:
 		if mode != finalizeFlush {

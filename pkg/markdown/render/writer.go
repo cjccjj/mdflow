@@ -10,6 +10,9 @@ type Writer struct {
 	live               bool
 	tableActive        bool
 	inBlockquote       bool
+	inBold             bool
+	inItalic           bool
+	inStrikethrough    bool
 	activeHeaderSuffix string
 	tableHeader        []string
 	tableRows          [][]string
@@ -91,28 +94,22 @@ func (w *Writer) Handle(e parser.Event) error {
 		return err
 
 	case parser.BoldStartEvent:
-		_, err := w.aw.WriteString(w.theme.Bold.Prefix)
-		return err
+		return w.enterEmphasis("bold")
 
 	case parser.BoldEndEvent:
-		_, err := w.aw.WriteString(w.theme.Bold.Suffix)
-		return err
+		return w.exitEmphasis("bold")
 
 	case parser.ItalicStartEvent:
-		_, err := w.aw.WriteString(w.theme.Italic.Prefix)
-		return err
+		return w.enterEmphasis("italic")
 
 	case parser.ItalicEndEvent:
-		_, err := w.aw.WriteString(w.theme.Italic.Suffix)
-		return err
+		return w.exitEmphasis("italic")
 
 	case parser.StrikethroughStartEvent:
-		_, err := w.aw.WriteString(w.theme.Strikethrough.Prefix)
-		return err
+		return w.enterEmphasis("strikethrough")
 
 	case parser.StrikethroughEndEvent:
-		_, err := w.aw.WriteString(w.theme.Strikethrough.Suffix)
-		return err
+		return w.exitEmphasis("strikethrough")
 
 	case parser.InlineCodeStartEvent:
 		_, err := w.aw.WriteString(w.theme.InlineCode.Prefix)
@@ -243,8 +240,113 @@ func (w *Writer) Handle(e parser.Event) error {
 	}
 }
 
+func (w *Writer) emphasisActive() bool {
+	return w.inBold || w.inItalic || w.inStrikethrough
+}
+
+func (w *Writer) emphasisSGR() string {
+	codes := make([]string, 0, 3)
+	if w.inBold {
+		codes = append(codes, "1")
+	}
+	if w.inItalic {
+		codes = append(codes, "3")
+	}
+	if w.inStrikethrough {
+		codes = append(codes, "9")
+	}
+	if len(codes) == 0 {
+		return ""
+	}
+	sgr := "\033["
+	for i, c := range codes {
+		if i > 0 {
+			sgr += ";"
+		}
+		sgr += c
+	}
+	return sgr + "m"
+}
+
+func (w *Writer) enterEmphasis(kind string) error {
+	hadActive := w.emphasisActive()
+
+	switch kind {
+	case "bold":
+		w.inBold = true
+	case "italic":
+		w.inItalic = true
+	case "strikethrough":
+		w.inStrikethrough = true
+	}
+
+	if hadActive {
+		if _, err := w.aw.WriteString("\033[0m"); err != nil {
+			return err
+		}
+		sgr := w.emphasisSGR()
+		if sgr != "" {
+			_, err := w.aw.WriteString(sgr)
+			return err
+		}
+		return nil
+	}
+
+	themePrefix := ""
+	switch kind {
+	case "bold":
+		themePrefix = w.theme.Bold.Prefix
+	case "italic":
+		themePrefix = w.theme.Italic.Prefix
+	case "strikethrough":
+		themePrefix = w.theme.Strikethrough.Prefix
+	}
+	_, err := w.aw.WriteString(themePrefix)
+	return err
+}
+
+func (w *Writer) exitEmphasis(kind string) error {
+	switch kind {
+	case "bold":
+		w.inBold = false
+	case "italic":
+		w.inItalic = false
+	case "strikethrough":
+		w.inStrikethrough = false
+	}
+
+	stillActive := w.emphasisActive()
+
+	if stillActive {
+		if _, err := w.aw.WriteString("\033[0m"); err != nil {
+			return err
+		}
+		sgr := w.emphasisSGR()
+		if sgr != "" {
+			_, err := w.aw.WriteString(sgr)
+			return err
+		}
+		return nil
+	}
+
+	themeSuffix := ""
+	switch kind {
+	case "bold":
+		themeSuffix = w.theme.Bold.Suffix
+	case "italic":
+		themeSuffix = w.theme.Italic.Suffix
+	case "strikethrough":
+		themeSuffix = w.theme.Strikethrough.Suffix
+	}
+	_, err := w.aw.WriteString(themeSuffix)
+	return err
+}
+
 func (w *Writer) ResetStyles() error {
 	w.inBlockquote = false
+	w.inBold = false
+	w.inItalic = false
+	w.inStrikethrough = false
 	w.activeHeaderSuffix = ""
 	_, err := w.aw.WriteString("\033[0m")
 	return err

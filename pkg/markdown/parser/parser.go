@@ -42,6 +42,7 @@ type blockContext struct {
 type emphasisContext struct {
 	italicOpener tokenizer.TokenType
 	boldOpener   tokenizer.TokenType
+	emphStack    []emphasisFrame
 }
 
 type tableContext struct {
@@ -253,11 +254,11 @@ func (p *Parser) processLineStartBlock(first tokenizer.Token) ([]Event, bool) {
 
 func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
 	if first.Type == tokenizer.StarToken && !p.lineStart {
-		return p.tryStarEmphasis()
+		return p.tryEmphasisStar()
 	}
 
 	if first.Type == tokenizer.UnderscoreToken {
-		return p.tryUnderscoreEmphasis()
+		return p.tryEmphasisUnderscore()
 	}
 
 	if first.Type == tokenizer.BacktickToken {
@@ -265,7 +266,7 @@ func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
 	}
 
 	if first.Type == tokenizer.TildeToken {
-		return p.processTildeStart()
+		return p.tryEmphasisTilde()
 	}
 
 	if first.Type == tokenizer.LeftBracketToken && p.prevChar != '!' {
