@@ -214,38 +214,12 @@ func (p *Parser) processLineStartBlock(first tokenizer.Token) ([]Event, bool) {
 		return events, true
 	}
 
-	for _, marker := range []tokenizer.TokenType{tokenizer.DashToken, tokenizer.StarToken, tokenizer.UnderscoreToken} {
-		matched, waiting := p.checkHorizontalRule(marker)
-		if matched {
-			return []Event{{Type: HorizontalRuleEvent}}, true
-		}
-		if waiting {
-			return nil, true
-		}
+	if events, handled := p.tryThematicBreak(); handled {
+		return events, true
 	}
 
-	if first.Type == tokenizer.HashToken {
-		hashCount := 0
-		for hashCount < len(p.buf) && p.buf[hashCount].Type == tokenizer.HashToken {
-			hashCount++
-		}
-		if hashCount > 6 {
-			p.consume(hashCount)
-			p.lineStart = false
-			events := make([]Event, hashCount)
-			for i := 0; i < hashCount; i++ {
-				events[i] = Event{Type: TextEvent, Value: "#"}
-			}
-			return events, true
-		}
-		return p.tryHeader(), true
-	}
-
-	if first.Type == tokenizer.TextToken && len(p.buf) > 1 {
-		if sp := leadingSpaceCount(first.Value); sp >= 1 && sp <= 3 && p.buf[1].Type == tokenizer.HashToken {
-			p.consume(1)
-			return p.tryHeader(), true
-		}
+	if events, handled := p.tryATXHeading(); handled {
+		return events, true
 	}
 
 	if first.Type == tokenizer.GreaterToken {
@@ -253,59 +227,25 @@ func (p *Parser) processLineStartBlock(first tokenizer.Token) ([]Event, bool) {
 	}
 
 	if first.Type == tokenizer.DashToken {
-		matched, waiting := p.checkHorizontalRule(tokenizer.DashToken)
-		if matched {
-			return []Event{{Type: HorizontalRuleEvent}}, true
-		}
-		if waiting {
-			return nil, true
-		}
 		return p.tryBullet(), true
 	}
 
-	if first.Type == tokenizer.TextToken {
-		if prefix, ok := orderedListPrefix(first.Value); ok {
-			p.consume(1)
-			p.lineStart = false
-			events := []Event{{Type: BulletItemEvent, Value: prefix}}
-			rest := first.Value[len(prefix):]
-			if strings.HasPrefix(rest, "    ") {
-				p.state = IndentedCodeBlockState
-				codeContent := rest[4:]
-				events = append(events, Event{Type: CodeBlockStartEvent})
-				if codeContent != "" {
-					events = append(events, Event{Type: TextEvent, Value: codeContent})
-				}
-				return events, true
-			}
-			if rest != "" {
-				events = append(events, Event{Type: TextEvent, Value: rest})
-			}
-			return events, true
-		}
-	}
-
 	if first.Type == tokenizer.StarToken {
-		matched, waiting := p.checkHorizontalRule(tokenizer.StarToken)
-		if matched {
-			return []Event{{Type: HorizontalRuleEvent}}, true
-		}
-		if waiting {
-			return nil, true
-		}
 		return p.tryBulletOrBold(), true
 	}
 
 	if first.Type == tokenizer.TextToken {
-		if events, handled := p.tryHTMLBlock(); handled {
+		if events, handled := p.tryOrderedList(); handled {
 			return events, true
 		}
 	}
 
-	if first.Type == tokenizer.LeftBracketToken {
-		if events, handled := p.tryLinkRefDef(); handled {
-			return events, true
-		}
+	if events, handled := p.tryHTMLBlock(); handled {
+		return events, true
+	}
+
+	if events, handled := p.tryLinkRefDef(); handled {
+		return events, true
 	}
 
 	return nil, false
@@ -313,76 +253,11 @@ func (p *Parser) processLineStartBlock(first tokenizer.Token) ([]Event, bool) {
 
 func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
 	if first.Type == tokenizer.StarToken && !p.lineStart {
-		matched, waiting := p.checkHorizontalRule(tokenizer.StarToken)
-		if matched {
-			return []Event{{Type: HorizontalRuleEvent}}, true
-		}
-		if waiting {
-			return nil, true
-		}
-		matched, waiting = p.checkConsecutive(tokenizer.StarToken, 2)
-		if matched {
-			if !hasMatchingCloser(p.buf[2:], tokenizer.StarToken, 2, true) && hasNewlineIn(p.buf[2:]) {
-				p.consume(2)
-				p.lineStart = false
-				return []Event{{Type: TextEvent, Value: "**"}}, true
-			}
-			p.consume(2)
-			p.state = BoldState
-			p.boldOpener = tokenizer.StarToken
-			return []Event{{Type: BoldStartEvent}}, true
-		}
-		if waiting {
-			return nil, true
-		}
-		if !hasMatchingCloser(p.buf[1:], tokenizer.StarToken, 1, true) {
-			p.consume(1)
-			p.lineStart = false
-			return []Event{{Type: TextEvent, Value: "*"}}, true
-		}
-		p.consume(1)
-		p.state = ItalicState
-		p.italicOpener = tokenizer.StarToken
-		return []Event{{Type: ItalicStartEvent}}, true
+		return p.tryStarEmphasis()
 	}
 
 	if first.Type == tokenizer.UnderscoreToken {
-		matched, waiting := p.checkHorizontalRule(tokenizer.UnderscoreToken)
-		if matched {
-			return []Event{{Type: HorizontalRuleEvent}}, true
-		}
-		if waiting {
-			return nil, true
-		}
-		matched, waiting = p.checkConsecutive(tokenizer.UnderscoreToken, 2)
-		if matched {
-			if !hasMatchingCloser(p.buf[2:], tokenizer.UnderscoreToken, 2, true) && hasNewlineIn(p.buf[2:]) {
-				p.consume(2)
-				p.lineStart = false
-				return []Event{{Type: TextEvent, Value: "__"}}, true
-			}
-			p.consume(2)
-			p.state = BoldState
-			p.boldOpener = tokenizer.UnderscoreToken
-			return []Event{{Type: BoldStartEvent}}, true
-		}
-		if waiting {
-			return nil, true
-		}
-		if !hasMatchingCloser(p.buf[1:], tokenizer.UnderscoreToken, 1, true) {
-			p.consume(1)
-			p.lineStart = false
-			return []Event{{Type: TextEvent, Value: "_"}}, true
-		}
-		if !isLeftFlanking(p.buf) {
-			p.consume(1)
-			p.lineStart = false
-			return []Event{{Type: TextEvent, Value: "_"}}, true
-		}
-		p.consume(1)
-		p.state = ItalicState
-		p.italicOpener = tokenizer.UnderscoreToken
-		return []Event{{Type: ItalicStartEvent}}, true
+		return p.tryUnderscoreEmphasis()
 	}
 
 	if first.Type == tokenizer.BacktickToken {
@@ -395,7 +270,7 @@ func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
 
 	if first.Type == tokenizer.LeftBracketToken && p.prevChar != '!' {
 		p.consume(1)
-		p.state = LinkTextState
+		p.enterState(LinkTextState)
 		p.linkBuf = nil
 		p.linkBracketConsumed = false
 		return nil, true
@@ -496,37 +371,12 @@ func (p *Parser) processDeferredLineStart(first tokenizer.Token) ([]Event, bool)
 		return p.tryTableHeader(), true
 	}
 
-	if satisfied, consumeCount, remaining := p.peekEquivIndent(); satisfied {
-		// Per spec §5.3: list items must not be preceded by more than
-		// three spaces of indentation. If 4+ spaces precede a list
-		// marker, it is NOT a list item — it is either an indented
-		// code block (if preceded by a blank line) or paragraph
-		// continuation text. Fall through to indented code block.
-		if isListStartAfterIndent(p.buf[consumeCount:], remaining) {
-			p.consume(consumeCount)
-			p.state = IndentedCodeBlockState
-			p.lineStart = false
-			events := []Event{{Type: CodeBlockStartEvent}}
-			if remaining != "" {
-				events = append(events, Event{Type: TextEvent, Value: remaining})
-			}
-			return events, true
-		}
-		p.consume(consumeCount)
-		p.state = IndentedCodeBlockState
-		p.lineStart = false
-		events := []Event{{Type: CodeBlockStartEvent}}
-		if remaining != "" {
-			events = append(events, Event{Type: TextEvent, Value: remaining})
-		}
+	if events, handled := p.tryIndentedCodeOrList(); handled {
 		return events, true
 	}
 
-	if first.Type == tokenizer.TextToken {
-		if p.hasNewline() {
-			p.state = SetextPendingState
-			return nil, true
-		}
+	if events, handled := p.trySetextCandidate(); handled {
+		return events, true
 	}
 
 	return nil, false
@@ -657,70 +507,4 @@ func (p *Parser) emitTextOrSpecial() []Event {
 	return events
 }
 
-func (p *Parser) bufferHasPattern() bool {
-	if len(p.buf) == 0 {
-		return false
-	}
-	if p.lineStart {
-		if p.buf[0].Type == tokenizer.HashToken {
-			return true
-		}
-		if p.buf[0].Type == tokenizer.GreaterToken {
-			return true
-		}
-		if p.buf[0].Type == tokenizer.DashToken {
-			return true
-		}
-		if p.buf[0].Type == tokenizer.StarToken {
-			return true
-		}
-		if p.buf[0].Type == tokenizer.UnderscoreToken {
-			return true
-		}
-		if p.buf[0].Type == tokenizer.PipeToken {
-			return true
-		}
-		if p.buf[0].Type == tokenizer.TabToken {
-			return true
-		}
-	}
-	if p.buf[0].Type == tokenizer.StarToken {
-		return true
-	}
-	if p.buf[0].Type == tokenizer.BacktickToken {
-		return true
-	}
-	if p.buf[0].Type == tokenizer.TildeToken {
-		return true
-	}
-	if p.buf[0].Type == tokenizer.UnderscoreToken {
-		return true
-	}
-	if p.buf[0].Type == tokenizer.LeftBracketToken {
-		return true
-	}
-	if p.buf[0].Type == tokenizer.BackslashToken {
-		return true
-	}
-	if p.buf[0].Type == tokenizer.AmpersandToken {
-		return true
-	}
-	if p.buf[0].Type == tokenizer.TextToken && p.lineStart && len(p.buf[0].Value) > 0 {
-		// Check for potential HTML block start patterns.
-		if p.buf[0].Value[0] == '<' {
-			return true
-		}
-		// Check for text token starting with spaces followed by digits (ordered list).
-		if p.buf[0].Value[0] == ' ' {
-			for _, c := range p.buf[0].Value {
-				if c >= '0' && c <= '9' {
-					return true
-				}
-				if c != ' ' {
-					break
-				}
-			}
-		}
-	}
-	return false
-}
+
