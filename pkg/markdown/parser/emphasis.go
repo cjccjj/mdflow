@@ -94,7 +94,16 @@ func (p *Parser) tryEmphasisCloser(tt tokenizer.TokenType) ([]Event, bool) {
 	}
 
 	if top.closerLen == 1 && count >= 2 && !p.hasEmphasisState(BoldState) {
-		return nil, false
+		if hasMatchingCloser(p.buf[2:], tt, 2, true) {
+			return nil, false
+		}
+		if hasMatchingCloser(p.buf[count:], tt, 1, true) {
+			return nil, false
+		}
+		p.consume(1)
+		frame := p.popEmphasis()
+		p.lineStart = false
+		return []Event{emphasisEndEvent(frame)}, true
 	}
 
 	p.consume(top.closerLen)
@@ -153,10 +162,6 @@ func (p *Parser) tryEmphasisStar() ([]Event, bool) {
 		return nil, false
 	}
 
-	if events, handled := p.tryEmphasisCloser(tokenizer.StarToken); handled {
-		return events, true
-	}
-
 	depth := p.emphasisDepth()
 
 	if count >= 3 && depth == 0 && !p.hasEmphasisState(BoldState) && !p.hasEmphasisState(ItalicState) &&
@@ -166,6 +171,10 @@ func (p *Parser) tryEmphasisStar() ([]Event, bool) {
 		p.pushEmphasis(emphasisFrame{state: BoldState, closerType: tokenizer.StarToken, closerLen: 2})
 		p.lineStart = false
 		return []Event{{Type: ItalicStartEvent}, {Type: BoldStartEvent}}, true
+	}
+
+	if events, handled := p.tryEmphasisCloser(tokenizer.StarToken); handled {
+		return events, true
 	}
 
 	if count >= 2 && depth < maxEmphasisDepth && !p.hasEmphasisState(BoldState) {
@@ -208,11 +217,14 @@ func (p *Parser) tryEmphasisStar() ([]Event, bool) {
 		return []Event{{Type: ItalicStartEvent}}, true
 	}
 
-	if count >= 1 && depth < maxEmphasisDepth && p.topEmphasis().closerType != tokenizer.StarToken {
-		p.consume(1)
-		p.pushEmphasis(emphasisFrame{state: ItalicState, closerType: tokenizer.StarToken, closerLen: 1})
-		p.lineStart = false
-		return []Event{{Type: ItalicStartEvent}}, true
+	if count >= 1 && depth < maxEmphasisDepth {
+		top := p.topEmphasis()
+		if top != nil && top.closerType != tokenizer.StarToken {
+			p.consume(1)
+			p.pushEmphasis(emphasisFrame{state: ItalicState, closerType: tokenizer.StarToken, closerLen: 1})
+			p.lineStart = false
+			return []Event{{Type: ItalicStartEvent}}, true
+		}
 	}
 
 	return nil, false
@@ -287,6 +299,12 @@ func (p *Parser) tryEmphasisUnderscore() ([]Event, bool) {
 	if count >= 1 && depth < maxEmphasisDepth {
 		top := p.topEmphasis()
 		if top != nil && top.closerType != tokenizer.UnderscoreToken {
+			p.consume(1)
+			p.pushEmphasis(emphasisFrame{state: ItalicState, closerType: tokenizer.UnderscoreToken, closerLen: 1})
+			p.lineStart = false
+			return []Event{{Type: ItalicStartEvent}}, true
+		}
+		if top != nil && hasMatchingCloser(p.buf[1:], tokenizer.UnderscoreToken, 1, true) {
 			p.consume(1)
 			p.pushEmphasis(emphasisFrame{state: ItalicState, closerType: tokenizer.UnderscoreToken, closerLen: 1})
 			p.lineStart = false
