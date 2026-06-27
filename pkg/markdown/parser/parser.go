@@ -60,6 +60,12 @@ type linkContext struct {
 	linkBuf             []tokenizer.Token
 	linkURLBuf          []tokenizer.Token
 	linkBracketConsumed bool
+	linkDepth           int
+	urlParenDepth       int
+	urlAngleBracket     bool
+	urlDone             bool
+	urlHadNewline       bool
+	linkTitleBuf        []tokenizer.Token
 }
 
 type htmlBlockContext struct {
@@ -265,6 +271,7 @@ func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
 		p.enterState(LinkTextState)
 		p.linkBuf = nil
 		p.linkBracketConsumed = false
+		p.linkDepth = 0
 		return nil, true
 	}
 

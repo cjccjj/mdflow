@@ -183,6 +183,17 @@ func (w *Writer) Handle(e parser.Event) error {
 		if _, err := w.aw.WriteString(w.theme.LinkURL.Suffix); err != nil {
 			return err
 		}
+		if e.Title != "" {
+			if _, err := w.aw.WriteString(" \""); err != nil {
+				return err
+			}
+			if _, err := w.aw.WriteString(e.Title); err != nil {
+				return err
+			}
+			if _, err := w.aw.WriteString("\""); err != nil {
+				return err
+			}
+		}
 		_, err := w.aw.WriteString(")")
 		return err
 

@@ -40,6 +40,7 @@ type Event struct {
 	Widths []int
 	Aligns []int
 	URL    string
+	Title  string
 }
 
 func (e EventType) String() string {
