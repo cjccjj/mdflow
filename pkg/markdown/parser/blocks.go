@@ -145,9 +145,7 @@ func (p *Parser) tryBulletOrBold() []Event {
 		p.lineStart = false
 		return []Event{{Type: ItalicStartEvent}}
 	}
-	p.consume(1)
-	p.lineStart = false
-	return []Event{{Type: TextEvent, Value: "*"}}
+	return nil
 }
 
 func (p *Parser) processHeader() []Event {

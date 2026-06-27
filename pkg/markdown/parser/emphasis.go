@@ -186,12 +186,29 @@ func (p *Parser) tryEmphasisStar() ([]Event, bool) {
 		}
 	}
 
+	if count >= 2 && depth < maxEmphasisDepth {
+		top := p.topEmphasis()
+		if top != nil && top.closerType != tokenizer.StarToken {
+			p.consume(2)
+			p.pushEmphasis(emphasisFrame{state: BoldState, closerType: tokenizer.StarToken, closerLen: 2})
+			p.lineStart = false
+			return []Event{{Type: BoldStartEvent}}, true
+		}
+	}
+
 	if count >= 1 && depth < maxEmphasisDepth && !p.hasEmphasisState(ItalicState) {
 		if !hasMatchingCloser(p.buf[1:], tokenizer.StarToken, 1, true) {
 			p.consume(1)
 			p.lineStart = false
 			return []Event{{Type: TextEvent, Value: "*"}}, true
 		}
+		p.consume(1)
+		p.pushEmphasis(emphasisFrame{state: ItalicState, closerType: tokenizer.StarToken, closerLen: 1})
+		p.lineStart = false
+		return []Event{{Type: ItalicStartEvent}}, true
+	}
+
+	if count >= 1 && depth < maxEmphasisDepth && p.topEmphasis().closerType != tokenizer.StarToken {
 		p.consume(1)
 		p.pushEmphasis(emphasisFrame{state: ItalicState, closerType: tokenizer.StarToken, closerLen: 1})
 		p.lineStart = false
@@ -240,6 +257,16 @@ func (p *Parser) tryEmphasisUnderscore() ([]Event, bool) {
 		}
 	}
 
+	if count >= 2 && depth < maxEmphasisDepth {
+		top := p.topEmphasis()
+		if top != nil && top.closerType != tokenizer.UnderscoreToken {
+			p.consume(2)
+			p.pushEmphasis(emphasisFrame{state: BoldState, closerType: tokenizer.UnderscoreToken, closerLen: 2})
+			p.lineStart = false
+			return []Event{{Type: BoldStartEvent}}, true
+		}
+	}
+
 	if count >= 1 && depth < maxEmphasisDepth && !p.hasEmphasisState(ItalicState) {
 		if !isLeftFlanking(p.buf) {
 			p.consume(1)
@@ -255,6 +282,16 @@ func (p *Parser) tryEmphasisUnderscore() ([]Event, bool) {
 		p.pushEmphasis(emphasisFrame{state: ItalicState, closerType: tokenizer.UnderscoreToken, closerLen: 1})
 		p.lineStart = false
 		return []Event{{Type: ItalicStartEvent}}, true
+	}
+
+	if count >= 1 && depth < maxEmphasisDepth {
+		top := p.topEmphasis()
+		if top != nil && top.closerType != tokenizer.UnderscoreToken {
+			p.consume(1)
+			p.pushEmphasis(emphasisFrame{state: ItalicState, closerType: tokenizer.UnderscoreToken, closerLen: 1})
+			p.lineStart = false
+			return []Event{{Type: ItalicStartEvent}}, true
+		}
 	}
 
 	return nil, false

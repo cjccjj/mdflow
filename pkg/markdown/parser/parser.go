@@ -232,7 +232,10 @@ func (p *Parser) processLineStartBlock(first tokenizer.Token) ([]Event, bool) {
 	}
 
 	if first.Type == tokenizer.StarToken {
-		return p.tryBulletOrBold(), true
+		if events := p.tryBulletOrBold(); events != nil {
+			return events, true
+		}
+		return nil, false
 	}
 
 	if first.Type == tokenizer.TextToken {
@@ -253,7 +256,7 @@ func (p *Parser) processLineStartBlock(first tokenizer.Token) ([]Event, bool) {
 }
 
 func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
-	if first.Type == tokenizer.StarToken && !p.lineStart {
+	if first.Type == tokenizer.StarToken {
 		return p.tryEmphasisStar()
 	}
 
