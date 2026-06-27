@@ -115,7 +115,7 @@ func (p *Parser) tryBulletOrBold() []Event {
 	}
 	starCount := p.countConsecutive(tokenizer.StarToken)
 	if starCount >= 3 && len(p.buf) > 2 && p.buf[1].Type == tokenizer.StarToken && p.buf[2].Type == tokenizer.StarToken &&
-		hasMatchingCloser(p.buf[3:], tokenizer.StarToken, 3, true) {
+		hasFlankingCloser(p.buf[3:], tokenizer.StarToken, 3, true) {
 		p.consume(3)
 		p.pushEmphasis(emphasisFrame{state: ItalicState, closerType: tokenizer.StarToken, closerLen: 1})
 		p.pushEmphasis(emphasisFrame{state: BoldState, closerType: tokenizer.StarToken, closerLen: 2})
@@ -125,10 +125,25 @@ func (p *Parser) tryBulletOrBold() []Event {
 
 	matched, waiting := p.checkConsecutive(tokenizer.StarToken, 2)
 	if matched {
-		if !hasMatchingCloser(p.buf[2:], tokenizer.StarToken, 2, true) && hasNewlineIn(p.buf[2:]) {
+		if !p.isLeftFlankingRun(tokenizer.StarToken, starCount) {
 			p.consume(2)
 			p.lineStart = false
+			p.prevChar = '*'
 			return []Event{{Type: TextEvent, Value: "**"}}
+		}
+		if !hasFlankingCloser(p.buf[2:], tokenizer.StarToken, 2, true) {
+			if hasFlankingCloser(p.buf[2:], tokenizer.StarToken, 1, true) && multipleOf3RuleBlocks(starCount, 1) {
+				p.consume(2)
+				p.pushEmphasis(emphasisFrame{state: ItalicState, closerType: tokenizer.StarToken, closerLen: 1})
+				p.lineStart = false
+				return []Event{{Type: TextEvent, Value: "*"}, {Type: ItalicStartEvent}}
+			}
+			if hasMatchingCloser(p.buf[2:], tokenizer.StarToken, 2, true) || hasNewlineIn(p.buf[2:]) {
+				p.consume(2)
+				p.lineStart = false
+				p.prevChar = '*'
+				return []Event{{Type: TextEvent, Value: "**"}}
+			}
 		}
 		p.consume(2)
 		p.pushEmphasis(emphasisFrame{state: BoldState, closerType: tokenizer.StarToken, closerLen: 2})
@@ -140,6 +155,20 @@ func (p *Parser) tryBulletOrBold() []Event {
 	}
 	if len(p.buf) >= 3 && p.buf[1].Type == tokenizer.TextToken &&
 		!strings.HasPrefix(p.buf[1].Value, " ") && p.buf[2].Type == tokenizer.StarToken {
+		if !p.isLeftFlankingRun(tokenizer.StarToken, starCount) {
+			p.consume(1)
+			p.lineStart = false
+			p.prevChar = '*'
+			return []Event{{Type: TextEvent, Value: "*"}}
+		}
+		if !hasFlankingCloser(p.buf[1:], tokenizer.StarToken, 1, true) {
+			if hasMatchingCloser(p.buf[1:], tokenizer.StarToken, 1, true) || hasNewlineIn(p.buf[1:]) {
+				p.consume(1)
+				p.lineStart = false
+				p.prevChar = '*'
+				return []Event{{Type: TextEvent, Value: "*"}}
+			}
+		}
 		p.consume(1)
 		p.pushEmphasis(emphasisFrame{state: ItalicState, closerType: tokenizer.StarToken, closerLen: 1})
 		p.lineStart = false
@@ -906,6 +935,7 @@ func (p *Parser) parseInlineLine(tokens []tokenizer.Token) []Event {
 	}
 	tmp := New()
 	tmp.lineStart = false
+	tmp.eof = true
 	events := tmp.Parse(tokens)
 	events = append(events, tmp.CloseStates()...)
 	return events

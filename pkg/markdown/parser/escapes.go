@@ -39,6 +39,65 @@ func hasMatchingCloser(tokens []tokenizer.Token, tt tokenizer.TokenType, n int, 
 	return false
 }
 
+func hasFlankingCloser(tokens []tokenizer.Token, tt tokenizer.TokenType, n int, spanNewlines bool) bool {
+	runLen := 0
+	newlineStreak := 0
+	var prevByte byte
+	hadIntervening := false
+
+	for i, tok := range tokens {
+		if tok.Type == tokenizer.NewlineToken {
+			if !spanNewlines {
+				return false
+			}
+			newlineStreak++
+			if newlineStreak >= 2 {
+				return false
+			}
+			runLen = 0
+			hadIntervening = true
+			prevByte = '\n'
+			continue
+		}
+		newlineStreak = 0
+		if tok.Type == tt {
+			runLen++
+			if runLen == n {
+				if !hadIntervening {
+					runLen = 0
+					continue
+				}
+				if isWhitespaceByte(prevByte) {
+					runLen = 0
+					hadIntervening = true
+					continue
+				}
+				if tt == tokenizer.UnderscoreToken && i+1 < len(tokens) {
+					next := tokens[i+1]
+					if next.Type == tokenizer.TextToken && len(next.Value) > 0 &&
+						!isWhitespaceByte(next.Value[0]) && !isPunctByte(next.Value[0]) {
+						runLen = 0
+						hadIntervening = true
+						continue
+					}
+				}
+				return true
+			}
+			continue
+		}
+		runLen = 0
+		hadIntervening = true
+		if tok.Type == tokenizer.TextToken && len(tok.Value) > 0 {
+			prevByte = tok.Value[len(tok.Value)-1]
+		} else if tok.Type == tokenizer.TabToken {
+			prevByte = '\t'
+		} else if len(tok.Value) > 0 {
+			prevByte = tok.Value[0]
+		}
+	}
+	return false
+}
+
 func hasCodeSpanCloser(tokens []tokenizer.Token, n int) bool {
 	for i := 0; i <= len(tokens)-n; i++ {
 		if tokens[i].Type != tokenizer.BacktickToken {
@@ -69,6 +128,7 @@ func (p *Parser) handleBackslash() []Event {
 	if len(p.buf) < 2 {
 		p.consume(1)
 		p.lineStart = false
+		p.prevChar = '\\'
 		return []Event{{Type: TextEvent, Value: "\\"}}
 	}
 
@@ -82,6 +142,7 @@ func (p *Parser) handleBackslash() []Event {
 	if len(second.Value) == 0 || !isASCIIPunctByte(second.Value[0]) {
 		p.consume(1)
 		p.lineStart = false
+		p.prevChar = '\\'
 		return []Event{{Type: TextEvent, Value: "\\"}}
 	}
 
@@ -93,5 +154,6 @@ func (p *Parser) handleBackslash() []Event {
 		p.consume(1)
 	}
 	p.lineStart = false
+	p.prevChar = escaped[0]
 	return []Event{{Type: TextEvent, Value: escaped}}
 }

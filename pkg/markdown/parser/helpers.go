@@ -371,16 +371,81 @@ func isDigitsOnly(s string) bool {
 	return true
 }
 
-func isLeftFlanking(tokens []tokenizer.Token) bool {
-	if len(tokens) < 2 {
+func isWhitespaceByte(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\xa0'
+}
+
+func isPunctByte(b byte) bool {
+	return (b >= 0x21 && b <= 0x2F) ||
+		(b >= 0x3A && b <= 0x40) ||
+		(b >= 0x5B && b <= 0x60) ||
+		(b >= 0x7B && b <= 0x7E)
+}
+
+func (p *Parser) isLeftFlankingRun(tt tokenizer.TokenType, runLen int) bool {
+	followedByWhitespace := false
+	followedByPunct := false
+
+	if runLen < len(p.buf) {
+		next := p.buf[runLen]
+		followedByWhitespace, followedByPunct = classifyNextChar(next)
+	} else if !p.eof {
+		return true
+	} else {
+		followedByWhitespace = true
+	}
+
+	if followedByWhitespace {
+		return false
+	}
+
+	if !followedByPunct {
 		return true
 	}
-	next := tokens[1]
-	if next.Type == tokenizer.NewlineToken || next.Type == tokenizer.TabToken {
+
+	return p.lineStart || isWhitespaceByte(p.prevChar) || isPunctByte(p.prevChar)
+}
+
+func (p *Parser) isRightFlankingRun(tt tokenizer.TokenType, runLen int) bool {
+	precededByWhitespace := p.lineStart || isWhitespaceByte(p.prevChar)
+	if precededByWhitespace {
 		return false
 	}
-	if next.Type == tokenizer.TextToken && len(next.Value) > 0 && (next.Value[0] == ' ' || next.Value[0] == '\t') {
-		return false
+
+	precededByPunct := isPunctByte(p.prevChar) && p.prevChar != markerDelimiterByte(tt)
+	if !precededByPunct {
+		return true
 	}
+
+	if runLen < len(p.buf) {
+		next := p.buf[runLen]
+		followedByWhitespace, followedByPunct := classifyNextChar(next)
+		return followedByWhitespace || followedByPunct
+	}
+
+	if p.eof {
+		return true
+	}
+
 	return true
+}
+
+func classifyNextChar(tok tokenizer.Token) (isWhitespace bool, isPunct bool) {
+	switch tok.Type {
+	case tokenizer.NewlineToken, tokenizer.TabToken:
+		return true, false
+	case tokenizer.TextToken:
+		if len(tok.Value) > 0 {
+			b := tok.Value[0]
+			if isWhitespaceByte(b) {
+				return true, false
+			}
+			if isPunctByte(b) {
+				return false, true
+			}
+		}
+		return false, false
+	default:
+		return false, true
+	}
 }

@@ -113,6 +113,9 @@ func (p *Parser) handleNumericEntity() []Event {
 		p.prependTokens(tokenizer.Token{Type: tokenizer.TextToken, Value: rest})
 	}
 
+	if len(decoded) > 0 {
+		p.prevChar = decoded[len(decoded)-1]
+	}
 	return []Event{{Type: TextEvent, Value: decoded}}
 }
 
@@ -152,6 +155,9 @@ func (p *Parser) handleNamedEntity() []Event {
 		p.prependTokens(tokenizer.Token{Type: tokenizer.TextToken, Value: rest})
 	}
 
+	if len(decoded) > 0 {
+		p.prevChar = decoded[len(decoded)-1]
+	}
 	return []Event{{Type: TextEvent, Value: decoded}}
 }
 

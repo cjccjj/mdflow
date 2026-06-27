@@ -256,20 +256,8 @@ func (p *Parser) processLineStartBlock(first tokenizer.Token) ([]Event, bool) {
 }
 
 func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
-	if first.Type == tokenizer.StarToken {
-		return p.tryEmphasisStar()
-	}
-
-	if first.Type == tokenizer.UnderscoreToken {
-		return p.tryEmphasisUnderscore()
-	}
-
 	if first.Type == tokenizer.BacktickToken {
 		return p.processBacktickStart()
-	}
-
-	if first.Type == tokenizer.TildeToken {
-		return p.tryEmphasisTilde()
 	}
 
 	if first.Type == tokenizer.LeftBracketToken && p.prevChar != '!' {
@@ -278,6 +266,18 @@ func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
 		p.linkBuf = nil
 		p.linkBracketConsumed = false
 		return nil, true
+	}
+
+	if first.Type == tokenizer.TildeToken {
+		return p.tryEmphasisTilde()
+	}
+
+	if first.Type == tokenizer.StarToken {
+		return p.tryEmphasisStar()
+	}
+
+	if first.Type == tokenizer.UnderscoreToken {
+		return p.tryEmphasisUnderscore()
 	}
 
 	return nil, false

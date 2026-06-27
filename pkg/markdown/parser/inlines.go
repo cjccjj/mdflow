@@ -142,6 +142,12 @@ func (p *Parser) processInlineCode() []Event {
 					}
 				}
 				events = append(events, Event{Type: InlineCodeEndEvent})
+				if len(events) > 1 {
+					last := events[len(events)-2]
+					if last.Type == TextEvent && len(last.Value) > 0 {
+						p.prevChar = last.Value[len(last.Value)-1]
+					}
+				}
 				return events
 			}
 			if waiting {
@@ -235,6 +241,9 @@ func (p *Parser) processLinkURL() []Event {
 			p.linkURLBuf = nil
 			p.linkBracketConsumed = false
 			p.state = NormalState
+			if len(textStr) > 0 {
+				p.prevChar = textStr[len(textStr)-1]
+			}
 			return []Event{{Type: LinkEvent, Value: textStr, URL: urlStr}}
 		}
 		if tok.Type == tokenizer.BackslashToken {
@@ -282,6 +291,9 @@ func (p *Parser) processLinkRefLabel() []Event {
 			p.linkBuf = nil
 			p.linkBracketConsumed = false
 			p.state = NormalState
+			if len(textStr) > 0 {
+				p.prevChar = textStr[len(textStr)-1]
+			}
 			return []Event{{Type: LinkRefEvent, Value: textStr, URL: labelStr}}
 		}
 		p.consume(1)
@@ -307,6 +319,12 @@ func (p *Parser) flushLinkAsText() []Event {
 	}
 	p.linkBuf = nil
 	p.linkBracketConsumed = false
+	wasLinkURL := p.state == LinkURLState
 	p.state = NormalState
+	if wasLinkURL {
+		p.prevChar = ')'
+	} else {
+		p.prevChar = ']'
+	}
 	return events
 }
