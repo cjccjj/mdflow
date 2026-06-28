@@ -107,7 +107,7 @@ func (p *Parser) finalizeState(mode finalizeMode) []Event {
 		}
 
 	case LinkRefDefState:
-		out = append(out, p.flushLinkRefDef()...)
+		out = append(out, p.linkRefDefParser.flushLinkRefDef()...)
 	}
 
 	return out

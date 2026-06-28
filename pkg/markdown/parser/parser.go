@@ -13,7 +13,7 @@ type Parser struct {
 	blockContext
 	setextContext
 	htmlBlockContext
-	linkRefDefContext
+	linkRefDefParser *linkRefDefParser
 
 	linkParser      *linkParser
 	emphasisParser  *emphasisParser
@@ -50,16 +50,12 @@ type htmlBlockContext struct {
 	htmlIndent    int
 }
 
-type linkRefDefContext struct {
-	lrdWaiting bool
-	lrdBuf     []tokenizer.Token
-}
-
 func New() *Parser {
 	p := &Parser{state: NormalState, lineContext: lineContext{lineStart: true}}
 	p.linkParser = newLinkParser(p)
 	p.emphasisParser = newEmphasisParser(p)
 	p.tableParser = newTableParser(p)
+	p.linkRefDefParser = newLinkRefDefParser(p)
 	return p
 }
 
@@ -70,10 +66,10 @@ func (p *Parser) Reset() {
 	p.blockContext = blockContext{}
 	p.setextContext = setextContext{}
 	p.htmlBlockContext = htmlBlockContext{}
-	p.linkRefDefContext = linkRefDefContext{}
 	p.linkParser.reset()
 	p.emphasisParser.reset()
 	p.tableParser.reset()
+	p.linkRefDefParser.reset()
 }
 
 func (p *Parser) Parse(tokens []tokenizer.Token) (events []Event) {
@@ -137,7 +133,7 @@ func (p *Parser) process() []Event {
 			events = append(events, p.processHTMLBlock()...)
 
 		case LinkRefDefState:
-			events = append(events, p.processLinkRefDef()...)
+			events = append(events, p.linkRefDefParser.processLinkRefDef()...)
 		}
 
 		if p.bufferedLen() == prevLen && p.state == prevState {
@@ -226,7 +222,7 @@ func (p *Parser) processLineStartBlock(first tokenizer.Token) ([]Event, bool) {
 		return events, true
 	}
 
-	if events, handled := p.tryLinkRefDef(); handled {
+	if events, handled := p.linkRefDefParser.tryLinkRefDef(); handled {
 		return events, true
 	}
 
