@@ -109,7 +109,7 @@ func (p *Parser) finalizeState(mode finalizeMode) []Event {
 			p.state = NormalState
 		}
 	case LinkTextState, LinkURLState:
-		out = append(out, p.flushLinkAsText()...)
+		out = append(out, p.linkParser.flushLinkAsText()...)
 
 	case HTMLBlockState:
 		if mode != finalizeFlush {

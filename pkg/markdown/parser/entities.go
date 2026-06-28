@@ -48,7 +48,7 @@ func (p *Parser) handleNumericEntity() []Event {
 
 	if len(p.buf) < 1 {
 		if !p.eof {
-			p.linkURLBuf = append(p.linkURLBuf, tokenizer.Token{Type: tokenizer.TextToken, Value: hashTok.Value})
+			p.linkParser.AppendURLToken(tokenizer.Token{Type: tokenizer.TextToken, Value: hashTok.Value})
 			return nil
 		}
 		return []Event{{Type: TextEvent, Value: "&" + hashTok.Value}}

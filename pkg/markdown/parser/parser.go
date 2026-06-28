@@ -14,9 +14,10 @@ type Parser struct {
 	emphasisContext
 	tableContext
 	setextContext
-	linkContext
 	htmlBlockContext
 	linkRefDefContext
+
+	linkParser *linkParser
 }
 
 type tokenBuffer struct {
@@ -56,18 +57,6 @@ type setextContext struct {
 	setextBuf     []tokenizer.Token
 }
 
-type linkContext struct {
-	linkBuf             []tokenizer.Token
-	linkURLBuf          []tokenizer.Token
-	linkBracketConsumed bool
-	linkDepth           int
-	urlParenDepth       int
-	urlAngleBracket     bool
-	urlDone             bool
-	urlHadNewline       bool
-	linkTitleBuf        []tokenizer.Token
-}
-
 type htmlBlockContext struct {
 	htmlBlockType int
 	htmlIndent    int
@@ -79,7 +68,9 @@ type linkRefDefContext struct {
 }
 
 func New() *Parser {
-	return &Parser{state: NormalState, lineContext: lineContext{lineStart: true}}
+	p := &Parser{state: NormalState, lineContext: lineContext{lineStart: true}}
+	p.linkParser = newLinkParser(p)
+	return p
 }
 
 func (p *Parser) Reset() {
@@ -90,9 +81,9 @@ func (p *Parser) Reset() {
 	p.emphasisContext = emphasisContext{}
 	p.tableContext = tableContext{}
 	p.setextContext = setextContext{}
-	p.linkContext = linkContext{}
 	p.htmlBlockContext = htmlBlockContext{}
 	p.linkRefDefContext = linkRefDefContext{}
+	p.linkParser.reset()
 }
 
 func (p *Parser) Parse(tokens []tokenizer.Token) (events []Event) {
@@ -156,10 +147,10 @@ func (p *Parser) process() []Event {
 			events = append(events, p.processSetextPending()...)
 
 		case LinkTextState:
-			events = append(events, p.processLinkText()...)
+			events = append(events, p.linkParser.processLinkText()...)
 
 		case LinkURLState:
-			events = append(events, p.processLinkURL()...)
+			events = append(events, p.linkParser.processLinkURL()...)
 
 		case HTMLBlockState:
 			events = append(events, p.processHTMLBlock()...)
@@ -268,10 +259,7 @@ func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
 
 	if first.Type == tokenizer.LeftBracketToken && p.prevChar != '!' {
 		p.consume(1)
-		p.enterState(LinkTextState)
-		p.linkBuf = nil
-		p.linkBracketConsumed = false
-		p.linkDepth = 0
+		p.linkParser.startLinkText()
 		return nil, true
 	}
 
