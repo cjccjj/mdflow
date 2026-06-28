@@ -24,14 +24,14 @@ func (p *Parser) tryHeader() []Event {
 
 	if delim.Type == tokenizer.NewlineToken {
 		p.consume(level)
-		p.headerLvl = level
+		p.blockParser.headerLvl = level
 		p.state = HeaderState
 		return []Event{{Type: HeaderStartEvent, Level: level}}
 	}
 
 	if delim.Type == tokenizer.TabToken {
 		p.consume(level + 1)
-		p.headerLvl = level
+		p.blockParser.headerLvl = level
 		p.state = HeaderState
 		p.contentIndent = tabRemainingEquiv(level)
 		return []Event{{Type: HeaderStartEvent, Level: level}}
@@ -44,7 +44,7 @@ func (p *Parser) tryHeader() []Event {
 		} else {
 			p.buf[0] = tokenizer.Token{Type: tokenizer.TextToken, Value: delim.Value[1:]}
 		}
-		p.headerLvl = level
+		p.blockParser.headerLvl = level
 		p.state = HeaderState
 		return []Event{{Type: HeaderStartEvent, Level: level}}
 	}
@@ -220,10 +220,10 @@ func (p *Parser) tryFencedCodeBlock() ([]Event, bool) {
 
 		p.consume(idx + count)
 		p.state = CodeBlockState
-		p.fenceLen = count
-		p.fenceChar = tokenizer.BacktickToken
-		p.codeBlockFirst = true
-		p.codeBlockIndent = indent
+		p.blockParser.fenceLen = count
+		p.blockParser.fenceChar = tokenizer.BacktickToken
+		p.blockParser.codeBlockFirst = true
+		p.blockParser.codeBlockIndent = indent
 		return []Event{{Type: CodeBlockStartEvent}}, true
 	}
 
@@ -238,10 +238,10 @@ func (p *Parser) tryFencedCodeBlock() ([]Event, bool) {
 
 		p.consume(idx + count)
 		p.state = CodeBlockState
-		p.fenceLen = count
-		p.fenceChar = tokenizer.TildeToken
-		p.codeBlockFirst = true
-		p.codeBlockIndent = indent
+		p.blockParser.fenceLen = count
+		p.blockParser.fenceChar = tokenizer.TildeToken
+		p.blockParser.codeBlockFirst = true
+		p.blockParser.codeBlockIndent = indent
 		return []Event{{Type: CodeBlockStartEvent}}, true
 	}
 
@@ -291,15 +291,15 @@ func (p *Parser) tryCloseCodeFence() (handled bool, closing bool) {
 		}
 	}
 
-	if idx >= len(p.buf) || p.buf[idx].Type != p.fenceChar {
+	if idx >= len(p.buf) || p.buf[idx].Type != p.blockParser.fenceChar {
 		return false, false
 	}
 
 	count := 0
-	for idx+count < len(p.buf) && p.buf[idx+count].Type == p.fenceChar {
+	for idx+count < len(p.buf) && p.buf[idx+count].Type == p.blockParser.fenceChar {
 		count++
 	}
-	if count < p.fenceLen {
+	if count < p.blockParser.fenceLen {
 		return false, false
 	}
 
@@ -334,10 +334,10 @@ func (p *Parser) tryCloseCodeFence() (handled bool, closing bool) {
 
 	p.state = NormalState
 	p.lineStart = true
-	p.fenceLen = 0
-	p.fenceChar = 0
-	p.codeBlockFirst = false
-	p.codeBlockIndent = 0
+	p.blockParser.fenceLen = 0
+	p.blockParser.fenceChar = 0
+	p.blockParser.codeBlockFirst = false
+	p.blockParser.codeBlockIndent = 0
 	return true, true
 }
 
@@ -364,13 +364,13 @@ func (p *Parser) processCodeBlock() []Event {
 		tok := p.buf[0]
 		p.consume(1)
 		if tok.Type == tokenizer.NewlineToken {
-			if p.codeBlockFirst {
+			if p.blockParser.codeBlockFirst {
 				flushInfo()
-				p.codeBlockFirst = false
+				p.blockParser.codeBlockFirst = false
 			}
 			p.lineStart = true
 			events = append(events, Event{Type: NewlineEvent})
-		} else if p.codeBlockFirst {
+		} else if p.blockParser.codeBlockFirst {
 			if tok.Type == tokenizer.BackslashToken && len(p.buf) > 0 {
 				next := p.buf[0]
 				if len(next.Value) > 0 && isASCIIPunctByte(next.Value[0]) {
@@ -399,13 +399,13 @@ func (p *Parser) processCodeBlock() []Event {
 				continue
 			}
 			flushInfo()
-			p.codeBlockFirst = false
+			p.blockParser.codeBlockFirst = false
 			p.lineStart = false
 			events = append(events, Event{Type: TextEvent, Value: tok.Value})
-		} else if p.codeBlockIndent > 0 {
+		} else if p.blockParser.codeBlockIndent > 0 {
 			text := tok.Value
 			if tok.Type == tokenizer.TextToken || tok.Type == tokenizer.TabToken {
-				stripped := stripLineIndent(text, p.codeBlockIndent)
+				stripped := stripLineIndent(text, p.blockParser.codeBlockIndent)
 				events = append(events, Event{Type: TextEvent, Value: stripped})
 			} else {
 				events = append(events, Event{Type: TextEvent, Value: text})
@@ -415,7 +415,7 @@ func (p *Parser) processCodeBlock() []Event {
 			events = append(events, Event{Type: TextEvent, Value: tok.Value})
 			p.lineStart = false
 		} else {
-			p.codeBlockFirst = false
+			p.blockParser.codeBlockFirst = false
 			p.lineStart = false
 			events = append(events, Event{Type: TextEvent, Value: tok.Value})
 		}
@@ -510,21 +510,21 @@ func (p *Parser) processBlockquote() []Event {
 
 		// An empty blockquote line (> followed by nothing) followed by a
 		// non-> line ends the blockquote (CommonMark Ex 249).
-		if p.blockquoteHadBlank && first.Type != tokenizer.GreaterToken {
-			p.blockquoteHadBlank = false
+		if p.blockParser.blockquoteHadBlank && first.Type != tokenizer.GreaterToken {
+			p.blockParser.blockquoteHadBlank = false
 			p.state = NormalState
 			events = append(events, Event{Type: BlockquoteEndEvent})
 			events = append(events, Event{Type: NewlineEvent})
 			return events
 		}
-		p.blockquoteHadBlank = false
+		p.blockParser.blockquoteHadBlank = false
 
 		if first.Type == tokenizer.GreaterToken {
 			// Check for empty blockquote line: >\n
 			if len(p.buf) >= 2 && p.buf[1].Type == tokenizer.NewlineToken {
 				p.consume(2) // consume > and newline
 				p.lineStart = true
-				p.blockquoteHadBlank = true
+				p.blockParser.blockquoteHadBlank = true
 				events = append(events, Event{Type: NewlineEvent})
 				return events
 			}

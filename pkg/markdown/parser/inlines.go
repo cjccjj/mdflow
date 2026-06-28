@@ -15,17 +15,17 @@ func (p *Parser) processInlineCode() []Event {
 	for len(p.buf) > 0 {
 		tok := p.buf[0]
 		if tok.Type == tokenizer.BacktickToken {
-			matched, waiting := p.checkConsecutive(tokenizer.BacktickToken, p.fenceLen)
+			matched, waiting := p.checkConsecutive(tokenizer.BacktickToken, p.blockParser.fenceLen)
 			if matched {
-				if prevWasBacktick || (p.fenceLen < len(p.buf) && p.buf[p.fenceLen].Type == tokenizer.BacktickToken) {
+				if prevWasBacktick || (p.blockParser.fenceLen < len(p.buf) && p.buf[p.blockParser.fenceLen].Type == tokenizer.BacktickToken) {
 					p.consume(1)
 					events = append(events, Event{Type: TextEvent, Value: "`"})
 					prevWasBacktick = true
 					continue
 				}
-				p.consume(p.fenceLen)
+				p.consume(p.blockParser.fenceLen)
 				p.state = NormalState
-				p.fenceLen = 0
+				p.blockParser.fenceLen = 0
 				if len(events) > 0 {
 					contentOnlySpaces := true
 					for _, e := range events {

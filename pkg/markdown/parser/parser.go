@@ -10,7 +10,7 @@ type Parser struct {
 	state State
 	tokenBuffer
 	lineContext
-	blockContext
+		blockParser      *blockParser
 	linkRefDefParser *linkRefDefParser
 	setextParser     *setextParser
 	htmlBlockParser  *htmlBlockParser
@@ -31,15 +31,6 @@ type lineContext struct {
 	contentIndent int
 }
 
-type blockContext struct {
-	headerLvl            int
-	fenceLen             int
-	fenceChar            tokenizer.TokenType
-	codeBlockFirst       bool
-	codeBlockIndent      int
-	blockquoteHadBlank   bool
-}
-
 
 
 func New() *Parser {
@@ -47,6 +38,7 @@ func New() *Parser {
 	p.linkParser = newLinkParser(p)
 	p.emphasisParser = newEmphasisParser(p)
 	p.tableParser = newTableParser(p)
+	p.blockParser = newBlockParser(p)
 	p.linkRefDefParser = newLinkRefDefParser(p)
 	p.setextParser = newSetextParser(p)
 	p.htmlBlockParser = newHTMLBlockParser(p)
@@ -57,7 +49,7 @@ func (p *Parser) Reset() {
 	p.state = NormalState
 	p.tokenBuffer = tokenBuffer{}
 	p.lineContext = lineContext{lineStart: true}
-	p.blockContext = blockContext{}
+	p.blockParser.reset()
 	p.linkParser.reset()
 	p.emphasisParser.reset()
 	p.tableParser.reset()
@@ -271,15 +263,15 @@ func (p *Parser) processBacktickStart() ([]Event, bool) {
 			if hasBacktickInInfo {
 				p.consume(n)
 				p.state = InlineCodeState
-				p.fenceLen = n
+				p.blockParser.fenceLen = n
 				return []Event{{Type: InlineCodeStartEvent}}, true
 			}
 
 			p.consume(n)
 			p.state = CodeBlockState
-			p.fenceLen = n
-			p.fenceChar = tokenizer.BacktickToken
-			p.codeBlockFirst = true
+			p.blockParser.fenceLen = n
+			p.blockParser.fenceChar = tokenizer.BacktickToken
+			p.blockParser.codeBlockFirst = true
 			return []Event{{Type: CodeBlockStartEvent}}, true
 		}
 		if waiting {
@@ -301,7 +293,7 @@ func (p *Parser) processBacktickStart() ([]Event, bool) {
 	}
 	p.consume(n)
 	p.state = InlineCodeState
-	p.fenceLen = n
+	p.blockParser.fenceLen = n
 	return []Event{{Type: InlineCodeStartEvent}}, true
 }
 
