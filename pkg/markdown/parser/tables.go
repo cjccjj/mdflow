@@ -6,64 +6,86 @@ import (
 	"github.com/cjccjj/mdflow/pkg/markdown/tokenizer"
 )
 
-func (p *Parser) tryTableHeader() []Event {
+// tableParser handles GFM table detection and parsing.
+// It owns table-specific state: the header buffer, column widths, and alignments.
+type tableParser struct {
+	tableHeaderBuf []string
+	tableColWidths []int
+	tableColAligns []int
+	p              *Parser
+}
+
+func newTableParser(p *Parser) *tableParser {
+	return &tableParser{p: p}
+}
+
+func (tp *tableParser) reset() {
+	tp.tableHeaderBuf = nil
+	tp.tableColWidths = nil
+	tp.tableColAligns = nil
+}
+
+func (tp *tableParser) tryTableHeader() []Event {
+	p := tp.p
 	if !p.lineStart || len(p.buf) < 2 || !p.hasNewline() {
 		return nil
 	}
-	cells, ok := p.extractTableCells()
+	cells, ok := tp.extractTableCells()
 	if !ok || len(cells) == 0 {
 		return p.emitTextOrSpecial()
 	}
-	p.tableHeaderBuf = cells
+	tp.tableHeaderBuf = cells
 	p.state = TablePendingState
 	return nil
 }
 
-func (p *Parser) processTablePending() []Event {
+func (tp *tableParser) processTablePending() []Event {
+	p := tp.p
 	if len(p.buf) == 0 || !p.hasNewline() {
 		return nil
 	}
 	if p.buf[0].Type != tokenizer.PipeToken {
-		return p.rejectTable()
+		return tp.rejectTable()
 	}
-	cells, ok := p.extractTableCells()
+	cells, ok := tp.extractTableCells()
 	if !ok || len(cells) == 0 {
-		return p.rejectTable()
+		return tp.rejectTable()
 	}
 	aligns, ok := parseSeparatorAligns(cells)
 	if !ok {
-		return p.rejectTable()
+		return tp.rejectTable()
 	}
 	widths := make([]int, len(cells))
 	for i, c := range cells {
 		widths[i] = len(c)
 	}
-	if len(widths) != len(p.tableHeaderBuf) {
-		return p.rejectTable()
+	if len(widths) != len(tp.tableHeaderBuf) {
+		return tp.rejectTable()
 	}
-	p.tableColWidths = widths
-	p.tableColAligns = aligns
+	tp.tableColWidths = widths
+	tp.tableColAligns = aligns
 	p.state = TableBodyState
 	p.lineStart = true
 
-	return []Event{{Type: TableStartEvent, Cells: p.tableHeaderBuf, Widths: widths, Aligns: aligns}}
+	return []Event{{Type: TableStartEvent, Cells: tp.tableHeaderBuf, Widths: widths, Aligns: aligns}}
 }
 
-func (p *Parser) processTableBody() []Event {
+func (tp *tableParser) processTableBody() []Event {
+	p := tp.p
 	if len(p.buf) == 0 || !p.hasNewline() {
 		return nil
 	}
 	if p.buf[0].Type != tokenizer.PipeToken {
 		p.state = NormalState
-		p.tableColWidths = nil
-		p.tableColAligns = nil
+		tp.tableColWidths = nil
+		tp.tableColAligns = nil
 		return []Event{{Type: TableEndEvent}}
 	}
-	cells, ok := p.extractTableCells()
+	cells, ok := tp.extractTableCells()
 	if !ok {
 		p.state = NormalState
-		p.tableColWidths = nil
-		p.tableColAligns = nil
+		tp.tableColWidths = nil
+		tp.tableColAligns = nil
 		return []Event{{Type: TableEndEvent}}
 	}
 	p.lineStart = true
@@ -71,9 +93,10 @@ func (p *Parser) processTableBody() []Event {
 	return []Event{{Type: TableRowEvent, Cells: cells}}
 }
 
-func (p *Parser) rejectTable() []Event {
-	cells := p.tableHeaderBuf
-	p.tableHeaderBuf = nil
+func (tp *tableParser) rejectTable() []Event {
+	p := tp.p
+	cells := tp.tableHeaderBuf
+	tp.tableHeaderBuf = nil
 	p.state = NormalState
 	if len(cells) > 0 {
 		return []Event{
@@ -84,15 +107,16 @@ func (p *Parser) rejectTable() []Event {
 	return nil
 }
 
-func (p *Parser) extractTableCells() ([]string, bool) {
-	return p.readTableCells(true, true)
+func (tp *tableParser) extractTableCells() ([]string, bool) {
+	return tp.readTableCells(true, true)
 }
 
-func (p *Parser) flushBodyRow() ([]string, bool) {
-	return p.readTableCells(false, false)
+func (tp *tableParser) flushBodyRow() ([]string, bool) {
+	return tp.readTableCells(false, false)
 }
 
-func (p *Parser) readTableCells(requireLeadingPipe, requireNewline bool) ([]string, bool) {
+func (tp *tableParser) readTableCells(requireLeadingPipe, requireNewline bool) ([]string, bool) {
+	p := tp.p
 	if len(p.buf) == 0 {
 		return nil, false
 	}

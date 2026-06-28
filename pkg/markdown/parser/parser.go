@@ -11,13 +11,13 @@ type Parser struct {
 	tokenBuffer
 	lineContext
 	blockContext
-	tableContext
 	setextContext
 	htmlBlockContext
 	linkRefDefContext
 
 	linkParser      *linkParser
 	emphasisParser  *emphasisParser
+	tableParser     *tableParser
 }
 
 type tokenBuffer struct {
@@ -40,12 +40,6 @@ type blockContext struct {
 	blockquoteHadBlank   bool
 }
 
-type tableContext struct {
-	tableHeaderBuf []string
-	tableColWidths []int
-	tableColAligns []int
-}
-
 type setextContext struct {
 	setextWaiting bool
 	setextBuf     []tokenizer.Token
@@ -65,6 +59,7 @@ func New() *Parser {
 	p := &Parser{state: NormalState, lineContext: lineContext{lineStart: true}}
 	p.linkParser = newLinkParser(p)
 	p.emphasisParser = newEmphasisParser(p)
+	p.tableParser = newTableParser(p)
 	return p
 }
 
@@ -73,12 +68,12 @@ func (p *Parser) Reset() {
 	p.tokenBuffer = tokenBuffer{}
 	p.lineContext = lineContext{lineStart: true}
 	p.blockContext = blockContext{}
-	p.tableContext = tableContext{}
 	p.setextContext = setextContext{}
 	p.htmlBlockContext = htmlBlockContext{}
 	p.linkRefDefContext = linkRefDefContext{}
 	p.linkParser.reset()
 	p.emphasisParser.reset()
+	p.tableParser.reset()
 }
 
 func (p *Parser) Parse(tokens []tokenizer.Token) (events []Event) {
@@ -124,10 +119,10 @@ func (p *Parser) process() []Event {
 			events = append(events, p.processBlockquote()...)
 
 		case TablePendingState:
-			events = append(events, p.processTablePending()...)
+			events = append(events, p.tableParser.processTablePending()...)
 
 		case TableBodyState:
-			events = append(events, p.processTableBody()...)
+			events = append(events, p.tableParser.processTableBody()...)
 
 		case SetextPendingState:
 			events = append(events, p.processSetextPending()...)
@@ -324,7 +319,7 @@ func (p *Parser) processBacktickStart() ([]Event, bool) {
 
 func (p *Parser) processDeferredLineStart(first tokenizer.Token) ([]Event, bool) {
 	if first.Type == tokenizer.PipeToken {
-		return p.tryTableHeader(), true
+		return p.tableParser.tryTableHeader(), true
 	}
 
 	if events, handled := p.tryIndentedCodeOrList(); handled {

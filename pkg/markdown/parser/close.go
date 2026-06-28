@@ -76,7 +76,7 @@ func (p *Parser) finalizeState(mode finalizeMode) []Event {
 			out = append(out, Event{Type: BlockquoteEndEvent})
 		}
 	case TableBodyState:
-		cells, ok := p.flushBodyRow()
+		cells, ok := p.tableParser.flushBodyRow()
 		if ok {
 			out = append(out, Event{Type: TableRowEvent, Cells: cells})
 		}
@@ -85,11 +85,11 @@ func (p *Parser) finalizeState(mode finalizeMode) []Event {
 			p.state = NormalState
 		}
 	case TablePendingState:
-		if len(p.tableHeaderBuf) > 0 {
-			out = append(out, Event{Type: TextEvent, Value: "| " + strings.Join(p.tableHeaderBuf, " | ") + " |"})
+		if len(p.tableParser.tableHeaderBuf) > 0 {
+			out = append(out, Event{Type: TextEvent, Value: "| " + strings.Join(p.tableParser.tableHeaderBuf, " | ") + " |"})
 			out = append(out, Event{Type: NewlineEvent})
 		}
-		p.tableHeaderBuf = nil
+		p.tableParser.tableHeaderBuf = nil
 		if mode == finalizeFlush {
 			p.state = NormalState
 		}

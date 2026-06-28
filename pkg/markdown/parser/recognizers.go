@@ -182,7 +182,7 @@ func (p *Parser) tryBulletStarOrOrdered() ([]Event, bool) {
 
 // tryTableR adapts tryTableHeader for the Recognizer signature.
 func (p *Parser) tryTableR() ([]Event, bool) {
-	events := p.tryTableHeader()
+	events := p.tableParser.tryTableHeader()
 	return events, events != nil
 }
 
