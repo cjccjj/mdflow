@@ -11,13 +11,13 @@ type Parser struct {
 	tokenBuffer
 	lineContext
 	blockContext
-	emphasisContext
 	tableContext
 	setextContext
 	htmlBlockContext
 	linkRefDefContext
 
-	linkParser *linkParser
+	linkParser      *linkParser
+	emphasisParser  *emphasisParser
 }
 
 type tokenBuffer struct {
@@ -38,12 +38,6 @@ type blockContext struct {
 	codeBlockFirst       bool
 	codeBlockIndent      int
 	blockquoteHadBlank   bool
-}
-
-type emphasisContext struct {
-	italicOpener tokenizer.TokenType
-	boldOpener   tokenizer.TokenType
-	emphStack    []emphasisFrame
 }
 
 type tableContext struct {
@@ -70,6 +64,7 @@ type linkRefDefContext struct {
 func New() *Parser {
 	p := &Parser{state: NormalState, lineContext: lineContext{lineStart: true}}
 	p.linkParser = newLinkParser(p)
+	p.emphasisParser = newEmphasisParser(p)
 	return p
 }
 
@@ -78,12 +73,12 @@ func (p *Parser) Reset() {
 	p.tokenBuffer = tokenBuffer{}
 	p.lineContext = lineContext{lineStart: true}
 	p.blockContext = blockContext{}
-	p.emphasisContext = emphasisContext{}
 	p.tableContext = tableContext{}
 	p.setextContext = setextContext{}
 	p.htmlBlockContext = htmlBlockContext{}
 	p.linkRefDefContext = linkRefDefContext{}
 	p.linkParser.reset()
+	p.emphasisParser.reset()
 }
 
 func (p *Parser) Parse(tokens []tokenizer.Token) (events []Event) {
@@ -115,15 +110,6 @@ func (p *Parser) process() []Event {
 
 		case HeaderState:
 			events = append(events, p.processHeader()...)
-
-		case BoldState:
-			events = append(events, p.processBold()...)
-
-		case ItalicState:
-			events = append(events, p.processItalic()...)
-
-		case StrikethroughState:
-			events = append(events, p.processStrikethrough()...)
 
 		case InlineCodeState:
 			events = append(events, p.processInlineCode()...)
@@ -229,7 +215,7 @@ func (p *Parser) processLineStartBlock(first tokenizer.Token) ([]Event, bool) {
 	}
 
 	if first.Type == tokenizer.StarToken {
-		if events := p.tryBulletOrBold(); events != nil {
+		if events := p.emphasisParser.tryBulletOrBold(); events != nil {
 			return events, true
 		}
 		return nil, false
@@ -264,15 +250,15 @@ func (p *Parser) processInlineStart(first tokenizer.Token) ([]Event, bool) {
 	}
 
 	if first.Type == tokenizer.TildeToken {
-		return p.tryEmphasisTilde()
+		return p.emphasisParser.tryTilde()
 	}
 
 	if first.Type == tokenizer.StarToken {
-		return p.tryEmphasisStar()
+		return p.emphasisParser.tryStar()
 	}
 
 	if first.Type == tokenizer.UnderscoreToken {
-		return p.tryEmphasisUnderscore()
+		return p.emphasisParser.tryUnderscore()
 	}
 
 	return nil, false
@@ -334,36 +320,7 @@ func (p *Parser) processBacktickStart() ([]Event, bool) {
 	return []Event{{Type: InlineCodeStartEvent}}, true
 }
 
-func (p *Parser) processTildeStart() ([]Event, bool) {
-	if p.lineStart {
-		matched, waiting := p.checkConsecutive(tokenizer.TildeToken, 3)
-		if matched {
-			n := p.countConsecutive(tokenizer.TildeToken)
-			if n == len(p.buf) && !p.eof {
-				return nil, true
-			}
-			p.consume(n)
-			p.state = CodeBlockState
-			p.fenceLen = n
-			p.fenceChar = tokenizer.TildeToken
-			p.codeBlockFirst = true
-			return []Event{{Type: CodeBlockStartEvent}}, true
-		}
-		if waiting {
-			return nil, true
-		}
-	}
-	matched, waiting := p.checkConsecutive(tokenizer.TildeToken, 2)
-	if matched {
-		p.consume(2)
-		p.state = StrikethroughState
-		return []Event{{Type: StrikethroughStartEvent}}, true
-	}
-	if waiting {
-		return nil, true
-	}
-	return nil, false
-}
+// processTildeStart removed (dead code). Tilde emphasis is handled by emphasisParser.tryTilde().
 
 func (p *Parser) processDeferredLineStart(first tokenizer.Token) ([]Event, bool) {
 	if first.Type == tokenizer.PipeToken {
@@ -390,7 +347,7 @@ func (p *Parser) handleIndentedList() []Event {
 	case tokenizer.DashToken:
 		return p.tryBullet()
 	case tokenizer.StarToken:
-		return p.tryBulletOrBold()
+		return p.emphasisParser.tryBulletOrBold()
 	case tokenizer.TextToken:
 		if prefix, ok := orderedListPrefix(first.Value); ok {
 			p.consume(1)

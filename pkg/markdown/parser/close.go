@@ -52,8 +52,8 @@ func (p *Parser) safeFlush() []Event {
 func (p *Parser) finalizeState(mode finalizeMode) []Event {
 	var out []Event
 
-	if mode != finalizeFlush && len(p.emphStack) > 0 {
-		out = append(out, p.drainEmphasisStack()...)
+	if mode != finalizeFlush && p.emphasisParser.depth() > 0 {
+		out = append(out, p.emphasisParser.drain()...)
 	}
 
 	switch p.state {
@@ -61,18 +61,8 @@ func (p *Parser) finalizeState(mode finalizeMode) []Event {
 		if mode != finalizeFlush {
 			out = append(out, Event{Type: HeaderEndEvent})
 		}
-	case BoldState:
-		if mode != finalizeFlush {
-			out = append(out, Event{Type: BoldEndEvent})
-		}
-	case ItalicState:
-		if mode != finalizeFlush {
-			out = append(out, Event{Type: ItalicEndEvent})
-		}
-	case StrikethroughState:
-		if mode != finalizeFlush {
-			out = append(out, Event{Type: StrikethroughEndEvent})
-		}
+	// BoldState/ItalicState/StrikethroughState removed — emphasis is handled
+	// by the emphasis stack drain above, not as parser states.
 	case InlineCodeState:
 		if mode != finalizeFlush {
 			out = append(out, Event{Type: InlineCodeEndEvent})

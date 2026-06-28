@@ -32,12 +32,12 @@ func (p *Parser) tryThematicBreak() ([]Event, bool) {
 
 // tryStarEmphasis handles *-based bold and italic.
 func (p *Parser) tryStarEmphasis() ([]Event, bool) {
-	return p.tryEmphasisStar()
+	return p.emphasisParser.tryStar()
 }
 
 // tryUnderscoreEmphasis handles _-based bold and italic.
 func (p *Parser) tryUnderscoreEmphasis() ([]Event, bool) {
-	return p.tryEmphasisUnderscore()
+	return p.emphasisParser.tryUnderscore()
 }
 
 // tryOrderedList checks for an ordered list prefix (like "1. " or "2) ").
@@ -114,7 +114,7 @@ func (p *Parser) tryBacktickInline() ([]Event, bool) {
 
 // tryTildeInline handles strikethrough via tildes.
 func (p *Parser) tryTildeInline() ([]Event, bool) {
-	return p.tryEmphasisTilde()
+	return p.emphasisParser.tryTilde()
 }
 
 // tryEscapeOrEntity handles backslash escapes and & entities.
@@ -176,7 +176,7 @@ func (p *Parser) tryBulletDash() ([]Event, bool) {
 
 // tryBulletStarOrOrdered adapts tryBulletOrBold for the Recognizer signature.
 func (p *Parser) tryBulletStarOrOrdered() ([]Event, bool) {
-	events := p.tryBulletOrBold()
+	events := p.emphasisParser.tryBulletOrBold()
 	return events, events != nil
 }
 
