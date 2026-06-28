@@ -688,12 +688,12 @@ func isBlockquoteTerminator(tok tokenizer.Token) bool {
 
 func (p *Parser) processSetextPending() []Event {
 	// First call: collect the first content line.
-	if !p.setextWaiting {
+	if !p.setextParser.setextWaiting {
 		if !p.hasNewline() {
 			return nil
 		}
-		p.setextBuf = stripLeadingSpaces(p.collectLineTokens(), 3)
-		p.setextWaiting = true
+		p.setextParser.setextBuf = stripLeadingSpaces(p.collectLineTokens(), 3)
+		p.setextParser.setextWaiting = true
 		return nil
 	}
 
@@ -706,10 +706,10 @@ func (p *Parser) processSetextPending() []Event {
 		first := p.buf[0]
 		if first.Type == tokenizer.DashToken || first.Type == tokenizer.StarToken {
 			if len(p.buf) < 2 || p.buf[1].Type == tokenizer.NewlineToken || hasStructuralWhitespace(p.buf[1]) {
-				events := p.parseInlineLine(p.setextBuf)
+				events := p.parseInlineLine(p.setextParser.setextBuf)
 				events = append(events, Event{Type: NewlineEvent})
-				p.setextBuf = nil
-				p.setextWaiting = false
+				p.setextParser.setextBuf = nil
+				p.setextParser.setextWaiting = false
 				p.state = NormalState
 				return events
 			}
@@ -718,7 +718,7 @@ func (p *Parser) processSetextPending() []Event {
 
 	level, ok := p.checkSetextUnderline()
 	if ok {
-		content := stripTrailingWhitespace(p.setextBuf)
+		content := stripTrailingWhitespace(p.setextParser.setextBuf)
 		var events []Event
 		if hasTextContent(content) {
 			events = append(events, Event{Type: HeaderStartEvent, Level: level})
@@ -728,8 +728,8 @@ func (p *Parser) processSetextPending() []Event {
 			events = append(events, Event{Type: HeaderEndEvent})
 		}
 		events = append(events, Event{Type: NewlineEvent})
-		p.setextBuf = nil
-		p.setextWaiting = false
+		p.setextParser.setextBuf = nil
+		p.setextParser.setextWaiting = false
 		p.state = NormalState
 		return events
 	}
@@ -738,11 +738,11 @@ func (p *Parser) processSetextPending() []Event {
 	if p.buf[0].Type == tokenizer.NewlineToken {
 		p.consume(1)
 		p.lineStart = true
-		events := p.parseInlineLine(p.setextBuf)
+		events := p.parseInlineLine(p.setextParser.setextBuf)
 		events = append(events, Event{Type: NewlineEvent})
 		events = append(events, Event{Type: NewlineEvent})
-		p.setextBuf = nil
-		p.setextWaiting = false
+		p.setextParser.setextBuf = nil
+		p.setextParser.setextWaiting = false
 		p.state = NormalState
 		return events
 	}
@@ -750,10 +750,10 @@ func (p *Parser) processSetextPending() []Event {
 	// A line starting with a block construct interrupts the setext heading.
 	first := p.buf[0]
 	if !isContinuationText(first) {
-		events := p.parseInlineLine(p.setextBuf)
+		events := p.parseInlineLine(p.setextParser.setextBuf)
 		events = append(events, Event{Type: NewlineEvent})
-		p.setextBuf = nil
-		p.setextWaiting = false
+		p.setextParser.setextBuf = nil
+		p.setextParser.setextWaiting = false
 		p.state = NormalState
 		return events
 	}
@@ -761,8 +761,8 @@ func (p *Parser) processSetextPending() []Event {
 	// Otherwise, append this line to the heading content (multi-line setext).
 	lineTokens := p.collectLineTokens()
 	lineTokens = stripLeadingWhitespaceTokens(lineTokens)
-	p.setextBuf = append(p.setextBuf, tokenizer.Token{Type: tokenizer.NewlineToken, Value: "\n"})
-	p.setextBuf = append(p.setextBuf, lineTokens...)
+	p.setextParser.setextBuf = append(p.setextParser.setextBuf, tokenizer.Token{Type: tokenizer.NewlineToken, Value: "\n"})
+	p.setextParser.setextBuf = append(p.setextParser.setextBuf, lineTokens...)
 	return nil
 }
 
@@ -931,8 +931,8 @@ func (p *Parser) tryHTMLBlock() ([]Event, bool) {
 	p.consume(lineEnd + 1)
 
 	p.state = HTMLBlockState
-	p.htmlBlockType = bt
-	p.htmlIndent = indent
+	p.htmlBlockParser.htmlBlockType = bt
+	p.htmlBlockParser.htmlIndent = indent
 	p.lineStart = true
 
 	var events []Event
@@ -945,8 +945,8 @@ func (p *Parser) tryHTMLBlock() ([]Event, bool) {
 	if checkHTMLEndCondition(fullText, bt) {
 		events = append(events, Event{Type: HTMLBlockEndEvent})
 		p.state = NormalState
-		p.htmlBlockType = 0
-		p.htmlIndent = 0
+		p.htmlBlockParser.htmlBlockType = 0
+		p.htmlBlockParser.htmlIndent = 0
 	}
 
 	return events, true
@@ -962,7 +962,7 @@ func (p *Parser) processHTMLBlock() []Event {
 	hasNewline := len(trail) > 0 && trail[0].Type == tokenizer.NewlineToken
 
 	lineText := rebuildLineText(tokens)
-	endInfo := checkHTMLEndCondition(lineText, p.htmlBlockType)
+	endInfo := checkHTMLEndCondition(lineText, p.htmlBlockParser.htmlBlockType)
 
 	p.consume(len(tokens))
 	if hasNewline {
@@ -981,8 +981,8 @@ func (p *Parser) processHTMLBlock() []Event {
 		events = append(events, Event{Type: HTMLBlockEndEvent})
 		p.state = NormalState
 		p.lineStart = true
-		p.htmlBlockType = 0
-		p.htmlIndent = 0
+		p.htmlBlockParser.htmlBlockType = 0
+		p.htmlBlockParser.htmlIndent = 0
 	}
 
 	return events

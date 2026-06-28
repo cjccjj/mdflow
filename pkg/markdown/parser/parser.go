@@ -11,9 +11,9 @@ type Parser struct {
 	tokenBuffer
 	lineContext
 	blockContext
-	setextContext
-	htmlBlockContext
 	linkRefDefParser *linkRefDefParser
+	setextParser     *setextParser
+	htmlBlockParser  *htmlBlockParser
 
 	linkParser      *linkParser
 	emphasisParser  *emphasisParser
@@ -40,15 +40,7 @@ type blockContext struct {
 	blockquoteHadBlank   bool
 }
 
-type setextContext struct {
-	setextWaiting bool
-	setextBuf     []tokenizer.Token
-}
 
-type htmlBlockContext struct {
-	htmlBlockType int
-	htmlIndent    int
-}
 
 func New() *Parser {
 	p := &Parser{state: NormalState, lineContext: lineContext{lineStart: true}}
@@ -56,6 +48,8 @@ func New() *Parser {
 	p.emphasisParser = newEmphasisParser(p)
 	p.tableParser = newTableParser(p)
 	p.linkRefDefParser = newLinkRefDefParser(p)
+	p.setextParser = newSetextParser(p)
+	p.htmlBlockParser = newHTMLBlockParser(p)
 	return p
 }
 
@@ -64,12 +58,12 @@ func (p *Parser) Reset() {
 	p.tokenBuffer = tokenBuffer{}
 	p.lineContext = lineContext{lineStart: true}
 	p.blockContext = blockContext{}
-	p.setextContext = setextContext{}
-	p.htmlBlockContext = htmlBlockContext{}
 	p.linkParser.reset()
 	p.emphasisParser.reset()
 	p.tableParser.reset()
 	p.linkRefDefParser.reset()
+	p.setextParser.reset()
+	p.htmlBlockParser.reset()
 }
 
 func (p *Parser) Parse(tokens []tokenizer.Token) (events []Event) {

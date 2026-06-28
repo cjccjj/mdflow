@@ -94,7 +94,7 @@ func (p *Parser) finalizeState(mode finalizeMode) []Event {
 			p.state = NormalState
 		}
 	case SetextPendingState:
-		out = append(out, p.flushSetext()...)
+		out = append(out, p.setextParser.flushSetext()...)
 		if mode == finalizeFlush {
 			p.state = NormalState
 		}
@@ -105,6 +105,7 @@ func (p *Parser) finalizeState(mode finalizeMode) []Event {
 		if mode != finalizeFlush {
 			out = append(out, Event{Type: HTMLBlockEndEvent})
 		}
+		p.htmlBlockParser.reset()
 
 	case LinkRefDefState:
 		out = append(out, p.linkRefDefParser.flushLinkRefDef()...)
@@ -115,10 +116,10 @@ func (p *Parser) finalizeState(mode finalizeMode) []Event {
 
 func (p *Parser) flushSetext() []Event {
 	var out []Event
-	content := stripTrailingWhitespace(p.setextBuf)
+	content := stripTrailingWhitespace(p.setextParser.setextBuf)
 	out = append(out, p.parseInlineLine(content)...)
 	out = append(out, Event{Type: NewlineEvent})
-	p.setextBuf = nil
-	p.setextWaiting = false
+	p.setextParser.setextBuf = nil
+	p.setextParser.setextWaiting = false
 	return out
 }
