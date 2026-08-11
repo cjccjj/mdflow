@@ -99,8 +99,10 @@ struct MD_ANSI_RENDERER_tag {
     int code_had_content;
     int in_html_block;
 
-    /* Code-block highlighting: the scanner state is fed per MD_TEXT_CODE
-     * chunk and tokens are emitted as they finalize (line by line). */
+    /* Code-block highlighting: active only when the fence label names a
+     * recognized major language (see enter_code); the scanner state is
+     * fed per MD_TEXT_CODE chunk and tokens are emitted as they
+     * finalize (line by line). */
     int hl_active;
     MD_HL_STATE hl_state;
 
@@ -1915,7 +1917,7 @@ static void
 enter_code(MD_ANSI_RENDERER* r, void* detail)
 {
     r->code_had_content = 0;
-    r->hl_active = 1;
+    r->hl_active = 0;
     hl_reset(&r->hl_state);
     if(in_quote_context(r)) {
         emit_bq_prefix(r);
@@ -1924,6 +1926,10 @@ enter_code(MD_ANSI_RENDERER* r, void* detail)
     if(detail != NULL) {
         MD_BLOCK_CODE_DETAIL* cd = (MD_BLOCK_CODE_DETAIL*)detail;
         if(cd->lang.text != NULL && cd->lang.size > 0) {
+            /* Highlight only code blocks whose fence label names a major
+             * language; unknown and unlabeled blocks render plain. */
+            r->hl_active = hl_lang_supported((const char*) cd->lang.text,
+                                             (int) cd->lang.size);
             write_str(r, r->theme->code_block_lang.prefix);
             render_attribute_to_output(r, &cd->lang);
             write_str(r, r->theme->code_block_lang.suffix);

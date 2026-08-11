@@ -127,19 +127,45 @@ def run_highlight_checks(program):
             print(f"FAIL [hl-{name}]: {out!r}")
             failures += 1
 
-    # keyword + EOL line comment; punctuation renders plain (no SGR)
+    def body(out):
+        """Drop the fenced language label line (first line) from output."""
+        lines = out.split('\n', 1)
+        return lines[1] if len(lines) > 1 else ''
+
+    # Highlighting is gated on the fence language label: only recognized
+    # major languages are highlighted; unknown and unlabeled blocks
+    # render plain (label line still shown for fenced blocks).
     out = run('```\nint x = 42; // note\n```\n')
+    check('nolabel-plain',
+          kw not in out and st not in out and cm not in out, out)
+    check('nolabel-preserve',
+          strip_sgr(out).strip() == 'int x = 42; // note', out)
+
+    out = run('```mysterylang\nint x = 42;\n```\n')
+    check('unknown-lang-plain',
+          kw not in out and st not in out and cm not in out, out)
+    check('unknown-lang-label',
+          'mysterylang' in strip_sgr(out), out)
+
+    # keyword + EOL line comment; punctuation renders plain (no SGR)
+    out = run('```c\nint x = 42; // note\n```\n')
     check('keyword', kw + 'int' in out, out)
     check('punct-plain', pu not in out and '\033[38;5;252m=' not in out
           and '\033[38;5;176m=' not in out, out)
     check('comment-line', cm + '// note' + reset in out, out)
     check('preserve-1',
-          strip_sgr(out).strip() == 'int x = 42; // note', out)
+          strip_sgr(body(out)).strip() == 'int x = 42; // note', out)
+
+    # common aliases and case-insensitive labels also enable highlighting
+    out = run('```cpp\nint x = 42;\n```\n')
+    check('alias-lang', kw + 'int' in out, out)
+    out = run('```Python\nint x = 42;\n```\n')
+    check('case-insensitive-lang', kw + 'int' in out, out)
 
     # whole-word keyword matching: substrings of real keywords or words
     # containing keyword fragments must NOT be styled (the keyword list is
     # anchored with ^( ... )$)
-    out = run('```\nmargin serif color username users\ninbox info insist\nif in\n```\n')
+    out = run('```c\nmargin serif color username users\ninbox info insist\nif in\n```\n')
     check('non-keywords-plain',
           kw + 'margin' not in out and kw + 'serif' not in out
           and kw + 'color' not in out and kw + 'username' not in out
@@ -150,40 +176,41 @@ def run_highlight_checks(program):
     check('real-keywords', kw + 'if' in out and kw + 'in' in out, out)
 
     # string token; keywords inside a string must NOT be re-scanned
-    out = run('```\ns = "int" + "hi"\n```\n')
+    out = run('```c\ns = "int" + "hi"\n```\n')
     check('string', st + '"int"' + reset in out, out)
     check('no-kw-in-string', kw + 'int' not in out, out)
     check('preserve-2',
-          strip_sgr(out).strip() == 's = "int" + "hi"', out)
+          strip_sgr(body(out)).strip() == 's = "int" + "hi"', out)
 
     # string spanning two lines
-    out = run('```\ns = "l1\nl2"\n```\n')
+    out = run('```c\ns = "l1\nl2"\n```\n')
     check('string-multiline', st + '"l1\nl2"' + reset in out, out)
 
     # block comment spanning two lines
-    out = run('```\n/* a\nb */\n```\n')
+    out = run('```c\n/* a\nb */\n```\n')
     check('comment-block', cm + '/* a\nb */' + reset in out, out)
 
     # hash comment ends at newline; next line stays plain
-    out = run('```\n# config\nx = 1\n```\n')
+    out = run('```c\n# config\nx = 1\n```\n')
     check('comment-hash', cm + '# config' + reset + '\n' in out, out)
     check('hash-eol', cm + '# config\n' not in out, out)
-    check('preserve-3', strip_sgr(out).strip() == '# config\nx = 1', out)
+    check('preserve-3',
+          strip_sgr(body(out)).strip() == '# config\nx = 1', out)
 
     # division is plain punctuation; a regex literal after '=' is string-styled
-    out = run('```\nx = a / b;\nlet rx = /a+b/;\n```\n')
-    check('division', pu not in out.split('\n')[0], out)
+    out = run('```c\nx = a / b;\nlet rx = /a+b/;\n```\n')
+    check('division', pu not in body(out).split('\n')[0], out)
     check('regex', st + '/a+b/' + reset in out, out)
 
     # non-alphanumeric backtick line is unformatted (scanner type-0
     # fallback), content preserved verbatim
-    out = run('```\n```c\nint main()\n```\n')
+    out = run('```c\n```c\nint main()\n```\n')
     check('backtick-plain', '```c' in strip_sgr(out), out)
     check('preserve-4',
-          strip_sgr(out).strip() == '```c\nint main()', out)
+          strip_sgr(body(out)).strip() == '```c\nint main()', out)
 
     # blockquote-wrapped code block: bar re-armed per line
-    out = run('> ```\n> echo hi\n> ```\n')
+    out = run('> ```sh\n> echo hi\n> ```\n')
     if out.count('│') < 2:
         print(f"FAIL [hl-quote-bar]: {out!r}")
         failures += 1

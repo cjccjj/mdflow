@@ -66,4 +66,10 @@ int hl_finish(MD_HL_STATE* state, HL_TOKEN_FN emit, void* userdata);
  * Equivalent to reset + feed + finish. */
 void hl_scan(const char* text, int len, HL_TOKEN_FN emit, void* userdata);
 
+/* Return 1 if the code block's language label (the first word of the
+ * fence info string) names a major programming language that mdflow
+ * highlights; 0 for unknown labels, non-code labels, or no label. The
+ * comparison is ASCII case-insensitive. */
+int hl_lang_supported(const char* lang, int len);
+
 #endif  /* MD_FLOW_HIGHLIGHT_H */

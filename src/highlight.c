@@ -663,3 +663,53 @@ hl_scan(const char* text, int len, HL_TOKEN_FN emit, void* userdata)
     if(hl_feed(&s, text, len, emit, userdata) == 0)
         hl_finish(&s, emit, userdata);
 }
+
+/* ------------------------------------------------------------------ */
+/*  Language gate: the scanner itself is language-agnostic, but code   */
+/*  blocks are highlighted only when the fence carries a recognized    */
+/*  major-language label. Unknown labels and unlabeled blocks render   */
+/*  plain. The list holds canonical names and common aliases; the      */
+/*  comparison is ASCII case-insensitive.                              */
+/* ------------------------------------------------------------------ */
+
+static const char* const hl_langs[] = {
+    "bash", "c", "c#", "c++", "cc", "clj", "cljs", "cpp", "cs",
+    "csharp", "css", "cxx", "dart", "elixir", "erl", "erlang",
+    "ex", "exs", "f#", "fish", "fsharp", "go", "golang", "groovy",
+    "haskell", "hs", "htm", "html", "java", "javascript", "js",
+    "jsx", "json", "julia", "kotlin", "ksh", "kt", "kts", "lua",
+    "matlab", "ml", "nim", "objc", "objective-c", "ocaml", "perl",
+    "php", "pl", "ps1", "powershell", "pwsh", "py", "python", "r",
+    "rb", "rs", "ruby", "rust", "scala", "sh", "shell", "sql",
+    "swift", "toml", "ts", "tsx", "typescript", "vb", "vbnet",
+    "xml", "yaml", "yml", "zig", "zsh"
+};
+
+int
+hl_lang_supported(const char* lang, int len)
+{
+    size_t i;
+
+    if(lang == NULL || len <= 0)
+        return 0;
+
+    for(i = 0; i < sizeof(hl_langs) / sizeof(hl_langs[0]); i++) {
+        const char* name = hl_langs[i];
+        int n = 0;
+
+        while(name[n] != '\0' && n < len) {
+            char a = name[n];
+            char b = lang[n];
+            if(a >= 'A' && a <= 'Z')
+                a += 32;
+            if(b >= 'A' && b <= 'Z')
+                b += 32;
+            if(a != b)
+                break;
+            n++;
+        }
+        if(name[n] == '\0' && n == len)
+            return 1;
+    }
+    return 0;
+}

@@ -45,14 +45,14 @@
 - **Extras on top** - highlights, spoilers, and underlines.
 - **Tables** - box-drawing borders, alignment, automatic layout, and wrapping that preserves styling.
 - **Unicode-correct** - tested with CJK and emoji.
-- **Syntax highlighting** - simplified, generic highlighting using five styles.
+- **Syntax highlighting** - simplified, generic highlighting using five styles, applied only to code blocks whose fence label names a major programming language (unlabeled and unknown labels render plain).
 - **Inline HTML** - tags and entities styled for the terminal, with comments hidden.
 - **HTML blocks** - raw HTML scanned and styled, entities decoded, comments hidden, and Markdown inside left literal.
 
 ### Limitations / TBD
 
 - **Reference links** - cannot be resolved inline while streaming. mdflow shows references as dim hints, then collects and prints their definitions at the end.
-- **Syntax highlighting** - provides lightweight, generic highlighting for readability rather than full language-specific palettes.
+- **Syntax highlighting** - provides lightweight, generic highlighting for readability rather than full language-specific palettes; code blocks without a recognized major-language label are left unstyled.
 - **No pager or TUI** - mdflow renders; scrolling is left to `more` or `less -R`.
 - **Customizable styling** - a clean, separate theme layer; user-facing theme configuration is still to come.
 
