@@ -1,0 +1,182 @@
+name: Build, Test, and Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build
+
+      - name: Build stream-event test binary
+        run: gcc -DMD4C_STREAMING -I src -o test/stream-event test/stream-event.c src/md4cs.c -w
+
+      - name: Batch-mode parity with MD4C
+        run: python3 test/verify-batch-parity.py --md4c-ref c4be8625eb11725d604232b028df10c2ddf9b577
+      - name: Batch-mode parity with MD4C (full extension flags)
+        run: python3 test/verify-batch-parity.py --md4c-ref c4be8625eb11725d604232b028df10c2ddf9b577 --full-flags
+      - name: Streaming vs batch parser equivalence
+        run: python3 test/run-parser-diff.py
+      - name: Streaming API pipeline tests
+        run: python3 test/run-stream-pipeline.py
+      - name: Streaming spec tests (footnotes)
+        run: python3 test/run-stream-spec.py -s test/stream-footnote.txt -p "test/stream-event --footnotes"
+      - name: Streaming spec tests (reference links)
+        run: python3 test/run-stream-spec.py -s test/stream-ref.txt -p test/stream-event
+      - name: Streaming spec tests (paragraphs)
+        run: python3 test/run-stream-spec.py -s test/stream-para.txt -p test/stream-event
+      - name: Streaming spec tests (1-byte chunk feeds)
+        run: python3 test/run-stream-spec.py -s test/stream-para.txt -p "test/stream-event --chunk 1"
+      - name: Streaming spec tests (40-byte chunk feeds)
+        run: python3 test/run-stream-spec.py -s test/stream-para.txt -p "test/stream-event --chunk 40"
+      - name: Renderer golden tests
+        run: python3 test/run-render-tests.py -p build/mdflow/mdflow
+      - run: python3 test/run-ansi-tests.py -p build/mdflow/mdflow
+      - run: python3 test/run-typewriter-tests.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mdflow-linux-x64
+          path: build/mdflow/mdflow
+          if-no-files-found: error
+          retention-days: 1
+
+  linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify architecture
+        run: test "$(uname -m)" = "aarch64"
+      - run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build
+      - run: python3 test/run-ansi-tests.py -p build/mdflow/mdflow
+      - run: python3 test/run-typewriter-tests.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mdflow-linux-arm64
+          path: build/mdflow/mdflow
+          if-no-files-found: error
+          retention-days: 1
+
+  macos-arm64:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify architecture
+        run: test "$(uname -m)" = "arm64"
+      - run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build
+      - run: python3 test/run-ansi-tests.py -p build/mdflow/mdflow
+      - run: python3 test/run-typewriter-tests.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mdflow-macos-arm64
+          path: build/mdflow/mdflow
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    needs:
+      - linux-x64
+      - linux-arm64
+      - macos-arm64
+    runs-on: ubuntu-latest
+
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(head -1 VERSION | tr -d '[:space:]')"
+          if [[ "$GITHUB_REF_NAME" != "v$VERSION" ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' does not match version '$VERSION'"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Package release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -s artifacts/mdflow-linux-x64/mdflow
+          test -s artifacts/mdflow-linux-arm64/mdflow
+          test -s artifacts/mdflow-macos-arm64/mdflow
+
+          mkdir -p dist stage
+
+          cp artifacts/mdflow-linux-x64/mdflow stage/mdflow
+          chmod 755 stage/mdflow
+          tar -C stage -czf \
+            "dist/mdflow_${VERSION}_linux_x86_64.tar.gz" \
+            mdflow
+
+          rm -rf stage/*
+          cp artifacts/mdflow-linux-arm64/mdflow stage/mdflow
+          chmod 755 stage/mdflow
+          tar -C stage -czf \
+            "dist/mdflow_${VERSION}_linux_arm64.tar.gz" \
+            mdflow
+
+          rm -rf stage/*
+          cp artifacts/mdflow-macos-arm64/mdflow stage/mdflow
+          chmod 755 stage/mdflow
+          tar -C stage -czf \
+            "dist/mdflow_${VERSION}_macos_arm64.tar.gz" \
+            mdflow
+
+          rm -rf stage
+
+          (
+            cd dist
+            sha256sum \
+              "mdflow_${VERSION}_linux_x86_64.tar.gz" \
+              "mdflow_${VERSION}_linux_arm64.tar.gz" \
+              "mdflow_${VERSION}_macos_arm64.tar.gz" \
+              > checksums.txt
+
+            sha256sum --check checksums.txt
+          )
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 && \
+            gh release delete "$GITHUB_REF_NAME" --yes
+
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --title "mdflow $GITHUB_REF_NAME" \
+            --generate-notes \
+            "dist/mdflow_${VERSION}_linux_x86_64.tar.gz" \
+            "dist/mdflow_${VERSION}_linux_arm64.tar.gz" \
+            "dist/mdflow_${VERSION}_macos_arm64.tar.gz" \
+            "dist/checksums.txt"
