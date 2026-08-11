@@ -1,0 +1,228 @@
+# Streaming Paragraph Inline Spans
+
+Tests for incremental paragraph emission: per-line text with the
+enter/leave_block callbacks firing at close, and windowed inline
+re-analysis across the lines (openers and closers may sit on any line).
+
+Also run with --chunk N: the event stream must be identical for any feed
+size, since buffer compaction slides the paragraph's retained lines
+between feeds.
+
+The test binary is stream-event (no flag).
+
+
+## Cross-line strong emphasis with a markless middle line
+
+The opener on line 1 and the closer on line 3 must pair even though line 2
+contains no mark characters (the analysis is reused for markless lines).
+
+```````````````````````````````` example
+**foo
+bar
+baz**
+.
+11 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    STRONG
+TEXT  "foo"  (NORMAL)
+TEXT  "\n"  (SOFTBR)
+TEXT  "bar"  (NORMAL)
+TEXT  "\n"  (SOFTBR)
+TEXT  "baz"  (NORMAL)
+<SPAN    STRONG
+-BLOCK   P
+-BLOCK   DOC
+````````````````````````````````
+
+## Cross-line emphasis with text after the closer
+
+```````````````````````````````` example
+a **b
+c** d
+.
+11 events
++BLOCK   DOC
+TEXT  "a "  (NORMAL)
++BLOCK   P
+>SPAN    STRONG
+TEXT  "b"  (NORMAL)
+TEXT  "\n"  (SOFTBR)
+TEXT  "c"  (NORMAL)
+<SPAN    STRONG
+TEXT  " d"  (NORMAL)
+-BLOCK   P
+-BLOCK   DOC
+````````````````````````````````
+
+## Multi-line code span
+
+The opener on line 1 and the closer on line 3 must pair; the paragraph is
+held until the whole span is inside the emission window so neither the
+backticks nor the span are emitted as literal text.
+
+```````````````````````````````` example
+``
+foo
+``
+.
+7 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    CODE
+TEXT  "foo"  (CODE)
+<SPAN    CODE
+-BLOCK   P
+-BLOCK   DOC
+````````````````````````````````
+
+## Backslash hard break across a markless line
+
+The backslash mark only forms when the line is not the last analyzed line;
+appending a plain second line must re-analyze instead of reusing the cached
+marks, and the break newline at the window boundary must still be emitted.
+
+```````````````````````````````` example
+foo\
+baz
+.
+7 events
++BLOCK   DOC
+TEXT  "foo"  (NORMAL)
+TEXT  "\n"  (BR)
++BLOCK   P
+TEXT  "baz"  (NORMAL)
+-BLOCK   P
+-BLOCK   DOC
+````````````````````````````````
+
+## Unclosed bracket pinned to a later closer
+
+The `[` on line 1 pins the window; the `]` on line 2 pairs with it and the
+label is emitted as a REF_LINK hint.
+
+```````````````````````````````` example
+[lead
+line two
+] tail
+.
+11 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    REF_LINK  {label="lead
+line two
+"}
+TEXT  "lead"  (NORMAL)
+TEXT  "\n"  (SOFTBR)
+TEXT  "line two"  (NORMAL)
+TEXT  "\n"  (SOFTBR)
+<SPAN    REF_LINK
+TEXT  " tail"  (NORMAL)
+-BLOCK   P
+-BLOCK   DOC
+````````````````````````````````
+
+## Single-line setext heading
+
+The whole heading text is held until the underline arrives and retypes the
+paragraph; nothing is emitted as paragraph text.
+
+```````````````````````````````` example
+Title
+=====
+.
+5 events
++BLOCK   DOC
++BLOCK   H
+TEXT  "Title"  (NORMAL)
+-BLOCK   H
+-BLOCK   DOC
+````````````````````````````````
+
+## Multi-line setext heading (accepted divergence)
+
+Only the last line is held for the underline lookahead; earlier lines have
+already been emitted as paragraph text by the time it arrives.
+
+```````````````````````````````` example
+foo
+bar
+=====
+.
+7 events
++BLOCK   DOC
+TEXT  "foo"  (NORMAL)
+TEXT  "\n"  (SOFTBR)
++BLOCK   H
+TEXT  "bar"  (NORMAL)
+-BLOCK   H
+-BLOCK   DOC
+````````````````````````````````
+
+## Plain multi-line paragraph
+
+Text streams per line (last line held) and enter_block(P) fires at close.
+
+```````````````````````````````` example
+alpha
+beta
+gamma
+delta
+.
+11 events
++BLOCK   DOC
+TEXT  "alpha"  (NORMAL)
+TEXT  "\n"  (SOFTBR)
+TEXT  "beta"  (NORMAL)
+TEXT  "\n"  (SOFTBR)
+TEXT  "gamma"  (NORMAL)
+TEXT  "\n"  (SOFTBR)
++BLOCK   P
+TEXT  "delta"  (NORMAL)
+-BLOCK   P
+-BLOCK   DOC
+````````````````````````````````
+
+## Paragraph inside a blockquote with a plain continuation line
+
+```````````````````````````````` example
+> one
+two
+> three
+.
+11 events
++BLOCK   DOC
++BLOCK   QUOTE
+TEXT  "one"  (NORMAL)
+TEXT  "\n"  (SOFTBR)
+TEXT  "two"  (NORMAL)
+TEXT  "\n"  (SOFTBR)
++BLOCK   P
+TEXT  "three"  (NORMAL)
+-BLOCK   P
+-BLOCK   QUOTE
+-BLOCK   DOC
+````````````````````````````````
+
+## Unclosed code span paragraph
+
+A backtick with no closer adds no mark, so the paragraph is held until close
+(the run might still gain a closer on a later line); the text then streams
+as literal backticks.
+
+```````````````````````````````` example
+`code
+line
+more
+.
+9 events
++BLOCK   DOC
++BLOCK   P
+TEXT  "`code"  (NORMAL)
+TEXT  "\n"  (SOFTBR)
+TEXT  "line"  (NORMAL)
+TEXT  "\n"  (SOFTBR)
+TEXT  "more"  (NORMAL)
+-BLOCK   P
+-BLOCK   DOC
+````````````````````````````````

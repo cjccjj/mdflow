@@ -1,0 +1,140 @@
+# Streaming Reference Links and Images
+
+Tests for streaming-mode reference link/image behavior.
+All [text][ref], [text][], [text], ![alt][ref] syntax
+is emitted as REF_LINK/REF_IMAGE hints during feed.
+Definitions are emitted as a REFERENCE_SECTION at flush.
+
+The test binary is stream-event (no flag).
+
+
+## Reference image with matching definition
+
+```````````````````````````````` example
+![alt][img]
+
+[img]: /url.png
+.
+15 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    REF_IMAGE  {label="img"}
+TEXT  "alt"  (NORMAL)
+<SPAN    REF_IMAGE
+-BLOCK   P
++BLOCK   REFERENCE_SECTION
+TEXT  "["  (NORMAL)
+TEXT  "img"  (NORMAL)
+TEXT  "]:"  (NORMAL)
+TEXT  " "  (NORMAL)
+TEXT  "/url.png"  (NORMAL)
+TEXT  "\n"  (NORMAL)
+-BLOCK   REFERENCE_SECTION
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Reference link with matching definition
+
+```````````````````````````````` example
+[text][ref]
+
+[ref]: /url
+.
+15 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    REF_LINK  {label="ref"}
+TEXT  "text"  (NORMAL)
+<SPAN    REF_LINK
+-BLOCK   P
++BLOCK   REFERENCE_SECTION
+TEXT  "["  (NORMAL)
+TEXT  "ref"  (NORMAL)
+TEXT  "]:"  (NORMAL)
+TEXT  " "  (NORMAL)
+TEXT  "/url"  (NORMAL)
+TEXT  "\n"  (NORMAL)
+-BLOCK   REFERENCE_SECTION
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Shortcut reference link with no definition
+
+```````````````````````````````` example
+[text]
+.
+7 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    REF_LINK  {label="text"}
+TEXT  "text"  (NORMAL)
+<SPAN    REF_LINK
+-BLOCK   P
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Collapsed reference link with no definition
+
+```````````````````````````````` example
+[text][]
+.
+7 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    REF_LINK  {label="text"}
+TEXT  "text"  (NORMAL)
+<SPAN    REF_LINK
+-BLOCK   P
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Reference image with no definition
+
+```````````````````````````````` example
+![alt][missing]
+.
+7 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    REF_IMAGE  {label="missing"}
+TEXT  "alt"  (NORMAL)
+<SPAN    REF_IMAGE
+-BLOCK   P
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Inline link must not become a reference hint
+
+```````````````````````````````` example
+[text](url)
+.
+7 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    A
+TEXT  "text"  (NORMAL)
+<SPAN    A
+-BLOCK   P
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Inline image must not become a reference image
+
+```````````````````````````````` example
+![alt](url.png)
+.
+7 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    IMG
+TEXT  "alt"  (NORMAL)
+<SPAN    IMG
+-BLOCK   P
+-BLOCK   DOC
+````````````````````````````````

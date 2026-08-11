@@ -1,0 +1,172 @@
+# Streaming Footnotes
+
+Tests for streaming-mode footnote ref/def behavior.
+Streaming unlinks refs from defs: all [^label] refs emit
+FOOTNOTE_REF callbacks during feed, and all definitions
+emit FOOTNOTE_DEF at flush time, in definition order.
+
+The test binary is stream-event --footnotes.
+
+
+## Orphan ref — ref with no matching definition
+
+```````````````````````````````` example
+[^orphan]
+.
+6 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    FOOTNOTE_REF  {label="orphan"}
+<SPAN    FOOTNOTE_REF
+-BLOCK   P
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Ref before def — ref fires during feed, def at flush
+
+```````````````````````````````` example
+[^x]
+
+[^x]: footnote body
+.
+11 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    FOOTNOTE_REF  {label="x"}
+<SPAN    FOOTNOTE_REF
+-BLOCK   P
++BLOCK   FOOTNOTE_DEF_SECTION
++BLOCK   FOOTNOTE_DEF  {label="x"}
+TEXT  "footnote body"  (NORMAL)
+-BLOCK   FOOTNOTE_DEF
+-BLOCK   FOOTNOTE_DEF_SECTION
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Def before ref — def consumed before ref fires
+
+```````````````````````````````` example
+[^a]: note A
+
+ref [^a]
+.
+12 events
++BLOCK   DOC
++BLOCK   P
+TEXT  "ref "  (NORMAL)
+>SPAN    FOOTNOTE_REF  {label="a"}
+<SPAN    FOOTNOTE_REF
+-BLOCK   P
++BLOCK   FOOTNOTE_DEF_SECTION
++BLOCK   FOOTNOTE_DEF  {label="a"}
+TEXT  "note A"  (NORMAL)
+-BLOCK   FOOTNOTE_DEF
+-BLOCK   FOOTNOTE_DEF_SECTION
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Duplicate defs — both entries stored, both emitted
+
+```````````````````````````````` example
+[^dup]: first
+[^dup]: second
+.
+10 events
++BLOCK   DOC
++BLOCK   FOOTNOTE_DEF_SECTION
++BLOCK   FOOTNOTE_DEF  {label="dup"}
+TEXT  "first"  (NORMAL)
+-BLOCK   FOOTNOTE_DEF
++BLOCK   FOOTNOTE_DEF  {label="dup"}
+TEXT  "second"  (NORMAL)
+-BLOCK   FOOTNOTE_DEF
+-BLOCK   FOOTNOTE_DEF_SECTION
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Empty def — definition with no body
+
+```````````````````````````````` example
+[^empty]:
+.
+6 events
++BLOCK   DOC
++BLOCK   FOOTNOTE_DEF_SECTION
++BLOCK   FOOTNOTE_DEF  {label="empty"}
+-BLOCK   FOOTNOTE_DEF
+-BLOCK   FOOTNOTE_DEF_SECTION
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Orphan def — definition with no reference
+
+```````````````````````````````` example
+[^unused]: orphan body
+.
+7 events
++BLOCK   DOC
++BLOCK   FOOTNOTE_DEF_SECTION
++BLOCK   FOOTNOTE_DEF  {label="unused"}
+TEXT  "orphan body"  (NORMAL)
+-BLOCK   FOOTNOTE_DEF
+-BLOCK   FOOTNOTE_DEF_SECTION
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Multiple refs to same def
+
+```````````````````````````````` example
+[^n] [^n]
+
+[^n]: multi
+.
+14 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    FOOTNOTE_REF  {label="n"}
+<SPAN    FOOTNOTE_REF
+TEXT  " "  (NORMAL)
+>SPAN    FOOTNOTE_REF  {label="n"}
+<SPAN    FOOTNOTE_REF
+-BLOCK   P
++BLOCK   FOOTNOTE_DEF_SECTION
++BLOCK   FOOTNOTE_DEF  {label="n"}
+TEXT  "multi"  (NORMAL)
+-BLOCK   FOOTNOTE_DEF
+-BLOCK   FOOTNOTE_DEF_SECTION
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Mixed: ref before and after def in same document
+
+```````````````````````````````` example
+[^early]
+
+[^early]: body
+
+[^early]
+.
+15 events
++BLOCK   DOC
++BLOCK   P
+>SPAN    FOOTNOTE_REF  {label="early"}
+<SPAN    FOOTNOTE_REF
+-BLOCK   P
++BLOCK   P
+>SPAN    FOOTNOTE_REF  {label="early"}
+<SPAN    FOOTNOTE_REF
+-BLOCK   P
++BLOCK   FOOTNOTE_DEF_SECTION
++BLOCK   FOOTNOTE_DEF  {label="early"}
+TEXT  "body"  (NORMAL)
+-BLOCK   FOOTNOTE_DEF
+-BLOCK   FOOTNOTE_DEF_SECTION
+-BLOCK   DOC
+````````````````````````````````
