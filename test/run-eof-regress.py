@@ -18,6 +18,7 @@ import sys
 
 
 SGR_RE = re.compile(r'\033\[[0-9;]*[a-zA-Z]')
+OSC8_RE = re.compile('\x1b\\]8;;[^\x1b\x07]*(\x1b\\\\|\x07)')
 
 CASES = [
     # Ref use after a consumed reference definition.
@@ -33,7 +34,7 @@ CASES = [
 
 
 def visible(text):
-    return SGR_RE.sub('', text).strip()
+    return OSC8_RE.sub('', SGR_RE.sub('', text)).strip()
 
 
 def main():

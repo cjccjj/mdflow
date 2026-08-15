@@ -21,6 +21,7 @@ from subprocess import Popen, PIPE
 
 
 SGR_RE = re.compile(r'\033\[[0-9;]*[a-zA-Z]')
+OSC8_RE = re.compile('\x1b\\]8;;[^\x1b\x07]*(\x1b\\\\|\x07)')
 ESC_MARK = '\u241b'          # ␛ stands for ESC in golden files
 CR_MARK = '\u240d'           # ␍ stands for carriage return
 ESC = '\x1b'
@@ -28,7 +29,7 @@ CLI_EPILOGUE = '\n' + ESC + '[0m'   # mdflow CLI appends this after close
 
 
 def strip_sgr(text):
-    return SGR_RE.sub('', text)
+    return OSC8_RE.sub('', SGR_RE.sub('', text))
 
 
 def strip_cli_epilogue(text):

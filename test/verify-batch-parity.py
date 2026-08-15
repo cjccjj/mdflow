@@ -37,7 +37,8 @@ CFLAGS = ["-Wall", "-Wextra", "-Wshadow", "-Wdeclaration-after-statement", "-g",
 
 MD4C_URL = "https://raw.githubusercontent.com/mity/md4c/{ref}/src/{filename}"
 
-# Same flag set the mdflow CLI passes (see src/mdflow.c).
+# Full parser extension set for upstream parity. The mdflow CLI enables a
+# subset (see src/mdflow.c): MD_DIALECT_GITHUB plus highlight.
 FULL_FLAGS_EXPR = ("MD_DIALECT_GITHUB | MD_FLAG_HIGHLIGHT | MD_FLAG_SPOILERS "
                    "| MD_FLAG_SUPERSCRIPTS | MD_FLAG_SUBSCRIPTS "
                    "| MD_FLAG_UNDERLINE")

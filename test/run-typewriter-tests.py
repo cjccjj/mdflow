@@ -8,8 +8,8 @@ Two layers:
      passthrough: the first real measurement (>= 8 chars over >= 50 ms,
      span measured from the first byte) decides once and locks. Slow
      streams switch to typewriter; fast streams, file redirects, and tiny
-     single-burst inputs stay in passthrough. The only options are
-     --typewriter-off and --report.
+     single-burst inputs stay in passthrough. The options are
+     --typewriter-off, --report, and --osc8-off.
 """
 
 from __future__ import annotations
@@ -116,11 +116,13 @@ def test_help() -> bool:
     ok = proc.returncode == 0
     ok = ok and b"--typewriter-off" in proc.stderr
     ok = ok and b"--report" not in proc.stderr
+    ok = ok and b"--osc8-off" in proc.stderr
     ok = ok and b"Disable typewriter effect" in proc.stderr
+    ok = ok and b"Disable OSC 8 hyperlinks" in proc.stderr
     ok = ok and b"--cps" not in proc.stderr
     ok = ok and b"--adaptive" not in proc.stderr
     print(("PASS" if ok else "FAIL")
-          + ": --help lists --typewriter-off and hides --report")
+          + ": --help lists --typewriter-off and --osc8-off, hides --report")
     return ok
 
 
@@ -131,6 +133,22 @@ def test_unknown_options_rejected() -> bool:
         good = proc.returncode != 0 and b"unknown option" in proc.stderr
         ok = ok and good
         print(("PASS" if good else "FAIL") + f": {args[0]} is rejected")
+    return ok
+
+
+def test_osc8_flag() -> bool:
+    """Default output uses OSC 8 hyperlinks and hides the URL; --osc8-off
+    keeps today's visible URL and omits the OSC 8 sequence."""
+    md = b"[x](https://e.com)\n"
+    default = run_cli(["--typewriter-off"], data=md)
+    off = run_cli(["--typewriter-off", "--osc8-off"], data=md)
+    ok = default.returncode == 0 and off.returncode == 0
+    ok = ok and b"\x1b]8;;https://e.com\x1b\\" in default.stdout
+    ok = ok and b" (https://e.com)" not in default.stdout
+    ok = ok and b"https://e.com" in off.stdout
+    ok = ok and b"\x1b]8;" not in off.stdout
+    print(("PASS" if ok else "FAIL")
+          + ": --osc8-off toggles hyperlink emission and URL visibility")
     return ok
 
 
@@ -281,6 +299,7 @@ def main() -> int:
         run_unit_tests(),
         test_help(),
         test_unknown_options_rejected(),
+        test_osc8_flag(),
         test_unclear_input_passes_through(),
         test_slow_stream_activates_typewriter(),
         test_bypass_file_parity(),

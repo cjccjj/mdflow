@@ -190,6 +190,7 @@ usage(void)
         "Options:\n"
         "  -h, --help           Display this help and exit\n"
         "  --typewriter-off     Disable typewriter effect\n"
+        "  --osc8-off           Disable OSC 8 hyperlinks and show link URLs\n"
         "\n"
         "Note: mdflow reads only from stdin. It does not accept filenames as\n"
         "arguments. Use a shell pipe or input redirection as shown above.\n",
@@ -213,6 +214,7 @@ output_cb(const char* str, int size, void* userdata)
 typedef struct {
     int typewriter_off;
     int report;
+    int osc8_off;
 } typewriter_opts_t;
 
 
@@ -689,6 +691,7 @@ run_typewriter(int term_width, const typewriter_opts_t* opts)
         cond_destroy(&cond);
         return 1;
     }
+    mdflow_set_osc8(mf, !opts->osc8_off);
 
     start_time = tw_monotonic();
     if(stdin_is_regular_file()) {
@@ -880,6 +883,10 @@ parse_options(int argc, char* argv[], typewriter_opts_t* o, int* show_help)
             o->report = 1;
             continue;
         }
+        if(strcmp(arg, "--osc8-off") == 0) {
+            o->osc8_off = 1;
+            continue;
+        }
 
         fprintf(stderr, "mdflow: unknown option: %s\n", arg);
         return -1;
@@ -944,6 +951,7 @@ main(int argc, char* argv[])
         fprintf(stderr, "mdflow_open failed.\n");
         return 1;
     }
+    mdflow_set_osc8(mf, !opts.osc8_off);
 
     while(1) {
         nread = (int) read(STDIN_FILENO, chunk, CHUNK_SIZE);

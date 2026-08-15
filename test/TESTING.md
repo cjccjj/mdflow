@@ -120,6 +120,7 @@ Tests the streaming API (`md_stream_init/feed/flush/finish`) directly:
 - CRLF across chunk boundaries
 - Byte-by-byte feed equivalence
 - Buffer compaction (footnote defs survive compaction)
+- Duplicate reference and footnote definitions keep the first label
 - Empty input (DOC open/close only)
 - Flush emits trailing partial line
 - Fenced code and HTML line-by-line early emission
@@ -206,8 +207,8 @@ Covers tables (borders, alignment, CJK/emoji widths, cursor-up redraw),
 emphasis, code blocks/highlighting, links, entities (incl. malformed
 numeric refs), HTML blocks (comments, CDATA, PIs, declarations, inline
 tags), admonitions, blockquotes, lists (incl. deep nesting), footnotes,
-reference links, task lists, spoilers, and the regression cases from past
-bugs. Expected outputs are a contract with the default theme: theme
+reference links, task lists, and the regression cases from past bugs.
+Expected outputs are a contract with the default theme: theme
 changes must update the goldens deliberately.
 
 The CLI epilogue (trailing newline + SGR reset appended by
@@ -237,8 +238,8 @@ deterministic unit tests (tokenizer grapheme/ANSI grouping, pacer burst and
 timeout rules, input-state rate detection) with a fake clock and a
 recording writer, then exercises the built CLI end to end:
 
-- typewriter pacing is on by default; `--help` lists only `--typewriter-off`
-  and `--report`, and old tuning flags are rejected
+- typewriter pacing is on by default; `--help` lists `--typewriter-off` and
+  `--osc8-off`, hides `--report`, and old tuning flags are rejected
 - regular-file redirect bypasses with byte-identical output
 - piped input is byte-identical after pacing
 - tiny single-burst input stays passthrough (unclear means bypass)

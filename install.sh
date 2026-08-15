@@ -5,7 +5,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/cjccjj/mdflow/main/install.sh | sh
 set -eu
 
-VERSION="0.1.0"
+VERSION="0.1.1"
 INSTALL_DIR="${HOME}/.local/bin"
 REPO="cjccjj/mdflow"
 BASE="https://github.com/${REPO}/releases/download/v${VERSION}"

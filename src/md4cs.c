@@ -1995,6 +1995,32 @@ md_add_label_def(MD_CTX* ctx, MD_LABEL_HASH_TABLE* table, const CHAR* label, SZ 
     return entry;
 }
 
+#ifdef MD4C_STREAMING
+/* Check retained definitions before appending a new record.  The batch
+ * hashtable performs this first-definition-wins normalization when it is
+ * built; streaming must apply the same policy before heap-copying a
+ * definition, or repeated labels make memory grow until flush. */
+static int
+md_stream_has_label_def(const MD_LABEL_HASH_TABLE* table,
+                        const CHAR* label, SZ label_size)
+{
+    unsigned i;
+    unsigned hash = md_label_hash(label, label_size);
+
+    for(i = 0; i < table->n_defs; i++) {
+        const MD_LABEL_HASH_ENTRY* entry;
+
+        entry = (const MD_LABEL_HASH_ENTRY*) ((const char*) table->defs
+                + i * table->def_size);
+        if(entry->hash == hash
+                && md_label_cmp(entry->label, entry->label_size,
+                                label, label_size) == 0)
+            return TRUE;
+    }
+    return FALSE;
+}
+#endif
+
 
 /************************************
  ***  Link Reference Definitions  ***
@@ -2047,8 +2073,8 @@ struct MD_FOOTNOTE_DEF_tag {
 };
 
 /* Returns 0 if not a footnote definition.
- * Returns N > 0 (number of lines consumed) if it is one and the definition
- * was stored successfully.
+ * Returns N > 0 (number of lines consumed) if it is one. In streaming mode,
+ * a duplicate normalized label is consumed without being stored.
  * Returns -1 on memory allocation error.
  */
 static int
@@ -2120,6 +2146,11 @@ md_is_footnote_definition(MD_CTX* ctx, const MD_LINE* lines, MD_SIZE n_lines)
      * Lines 1..n-1 are stored verbatim (md4c strips indentation before
      * handing us MD_LINE, so no further adjustment is needed). */
     n_content_lines = (off >= lines[0].end  &&  n > 1) ? n - 1 : n;
+#ifdef MD4C_STREAMING
+    if(md_stream_has_label_def(&ctx->footnote_hashtable,
+                               STR(label_beg), label_end - label_beg))
+        return (int) n;
+#endif
     content_lines = (MD_LINE*) malloc(n_content_lines * sizeof(MD_LINE));
     if(content_lines == NULL) {
         MD_LOG("malloc() failed.");
@@ -2425,8 +2456,9 @@ md_is_link_title(MD_CTX* ctx, const MD_LINE* lines, MD_SIZE n_lines, OFF beg,
 /* Returns 0 if it is not a reference definition.
  *
  * Returns N > 0 if it is a reference definition. N then corresponds to the
- * number of lines forming it). In this case the definition is stored for
- * resolving any links referring to it.
+ * number of lines forming it. In this case the definition is stored for
+ * resolving any links referring to it, unless streaming has already retained
+ * the same normalized label.
  *
  * Returns -1 in case of an error (out of memory).
  */
@@ -2505,6 +2537,12 @@ md_is_link_reference_definition(MD_CTX* ctx, const MD_LINE* lines, MD_SIZE n_lin
         MD_CHECK(md_merge_lines_alloc(ctx, label_contents_beg, label_contents_end,
                     lines + label_contents_line_index, n_lines - label_contents_line_index,
                     _T(' '), &label, &label_size));
+#ifdef MD4C_STREAMING
+        if(md_stream_has_label_def(&ctx->ref_def_hashtable, label, label_size)) {
+            free(label);
+            return (int) line_index + 1;
+        }
+#endif
         def = (MD_REF_DEF*) md_add_label_def(ctx, &ctx->ref_def_hashtable, label, label_size);
         if(def == NULL) {
             free(label);
@@ -2512,6 +2550,12 @@ md_is_link_reference_definition(MD_CTX* ctx, const MD_LINE* lines, MD_SIZE n_lin
         }
         def->label_needs_free = TRUE;
     } else {
+#ifdef MD4C_STREAMING
+        if(md_stream_has_label_def(&ctx->ref_def_hashtable,
+                                   STR(label_contents_beg),
+                                   label_contents_end - label_contents_beg))
+            return (int) line_index + 1;
+#endif
         def = (MD_REF_DEF*) md_add_label_def(ctx, &ctx->ref_def_hashtable,
                     STR(label_contents_beg), label_contents_end - label_contents_beg);
         if(def == NULL)
@@ -6463,6 +6507,8 @@ md_consume_link_reference_definitions(MD_CTX* ctx)
         int n_consumed = 0;
 #ifdef MD4C_STREAMING
         int is_footnote = 0;
+        unsigned ref_defs_before = ctx->ref_def_hashtable.n_defs;
+        unsigned footnote_defs_before = ctx->footnote_hashtable.n_defs;
 #endif
 
         /* When footnotes are enabled, try footnote definition first for lines
@@ -6493,10 +6539,12 @@ md_consume_link_reference_definitions(MD_CTX* ctx)
 #ifdef MD4C_STREAMING
         if(n_consumed > 0) {
             if(is_footnote) {
-                if(md_stream_heap_copy_footnote_def(ctx) < 0)
+                if(ctx->footnote_hashtable.n_defs > footnote_defs_before
+                        && md_stream_heap_copy_footnote_def(ctx) < 0)
                     return -1;
             } else {
-                if(md_stream_heap_copy_ref_def(ctx) < 0)
+                if(ctx->ref_def_hashtable.n_defs > ref_defs_before
+                        && md_stream_heap_copy_ref_def(ctx) < 0)
                     return -1;
             }
         }

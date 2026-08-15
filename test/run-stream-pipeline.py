@@ -3,7 +3,7 @@
 """Pipeline tests for the streaming parser API.
 
 Tests: CRLF splitting, byte-feed equivalence, buffer compaction,
-empty input, and trailing-line flush.
+duplicate-definition handling, empty input, and trailing-line flush.
 """
 
 import subprocess, os, sys, tempfile
@@ -190,7 +190,89 @@ else:
     failed += 1
 
 
-# ── Test 4: empty input → just DOC open/close ────────────────
+# ── Test 4: duplicate definitions keep the first label ───────
+
+output = build_and_run("duplicate-defs", r'''
+#include <stdio.h>
+#include <string.h>
+#include "md4cs.h"
+static int footnote_defs;
+static int in_footnote;
+static int in_refs;
+static char footnote_text[128];
+static int footnote_len;
+static char ref_text[256];
+static int ref_len;
+static int eb(MD_BLOCKTYPE t, void* d, void* u) {
+    (void)d; (void)u;
+    if(t == MD_BLOCK_FOOTNOTE_DEF) { footnote_defs++; in_footnote = 1; }
+    if(t == MD_BLOCK_REFERENCE_SECTION) in_refs = 1;
+    return 0;
+}
+static int lb(MD_BLOCKTYPE t, void* d, void* u) {
+    (void)d; (void)u;
+    if(t == MD_BLOCK_FOOTNOTE_DEF) in_footnote = 0;
+    if(t == MD_BLOCK_REFERENCE_SECTION) in_refs = 0;
+    return 0;
+}
+static int es(MD_SPANTYPE t, void* d, void* u) { (void)t; (void)d; (void)u; return 0; }
+static int ls(MD_SPANTYPE t, void* d, void* u) { (void)t; (void)d; (void)u; return 0; }
+static int tx(MD_TEXTTYPE t, const MD_CHAR* s, MD_SIZE n, void* u) {
+    int take;
+    (void)t; (void)u;
+    if(in_footnote) {
+        take = (int)n;
+        if(take > (int)sizeof(footnote_text) - footnote_len - 1)
+            take = (int)sizeof(footnote_text) - footnote_len - 1;
+        if(take > 0) { memcpy(footnote_text + footnote_len, s, (size_t)take); footnote_len += take; }
+        footnote_text[footnote_len] = '\0';
+    }
+    if(in_refs) {
+        take = (int)n;
+        if(take > (int)sizeof(ref_text) - ref_len - 1)
+            take = (int)sizeof(ref_text) - ref_len - 1;
+        if(take > 0) { memcpy(ref_text + ref_len, s, (size_t)take); ref_len += take; }
+        ref_text[ref_len] = '\0';
+    }
+    return 0;
+}
+int main() {
+    MD_PARSER p = {0};
+    MD_PARSER_CTX* ctx;
+    p.flags = MD_DIALECT_GITHUB;
+    p.enter_block = eb; p.leave_block = lb;
+    p.enter_span = es; p.leave_span = ls; p.text = tx;
+    if(md_stream_init(&p, NULL, &ctx) != 0) { printf("FAIL init\n"); return 1; }
+    if(md_stream_feed(ctx, "[Alpha]: /first\n", 16) != 0
+            || md_stream_feed(ctx, "[alpha]: /second\n\n", 18) != 0
+            || md_stream_feed(ctx, "[^Note]: first footnote\n", 24) != 0
+            || md_stream_feed(ctx, "[^note]: second footnote\n\n", 26) != 0
+            || md_stream_flush(ctx) != 0) {
+        printf("FAIL feed\n"); md_stream_finish(ctx); return 1;
+    }
+    md_stream_finish(ctx);
+    if(footnote_defs != 1 || strstr(footnote_text, "first footnote") == NULL
+            || strstr(footnote_text, "second footnote") != NULL
+            || strstr(ref_text, "/first") == NULL
+            || strstr(ref_text, "/second") != NULL) {
+        printf("FAIL defs=%d footnote=%s refs=%s\n", footnote_defs,
+               footnote_text, ref_text);
+        return 1;
+    }
+    printf("PASS\n");
+    return 0;
+}
+''')
+
+if output == "PASS":
+    print("  PASS: duplicate definitions keep first label")
+    passed += 1
+else:
+    print(f"  FAIL: duplicate definitions — {output}")
+    failed += 1
+
+
+# ── Test 5: empty input → just DOC open/close ────────────────
 
 events = run_event("")
 has_doc_open = "+BLOCK   DOC" in events
@@ -203,7 +285,7 @@ else:
     failed += 1
 
 
-# ── Test 5: flush emits trailing partial line ────────────────
+# ── Test 6: flush emits trailing partial line ────────────────
 
 events = run_event("hello")
 needs = ["+BLOCK   DOC", "+BLOCK   P", 'TEXT  "hello"  (NORMAL)', "-BLOCK   P", "-BLOCK   DOC"]
@@ -215,7 +297,7 @@ else:
     failed += 1
 
 
-# ── Test 6: fenced code and HTML blocks emit line by line ─────
+# ── Test 7: fenced code and HTML blocks emit line by line ─────
 
 output = build_and_run("earlyemit", '''
 #include <stdio.h>

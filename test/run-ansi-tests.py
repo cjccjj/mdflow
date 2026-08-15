@@ -9,10 +9,11 @@ from subprocess import Popen, PIPE
 
 
 SGR_RE = re.compile(r'\033\[[0-9;]*[a-zA-Z]')
+OSC8_RE = re.compile('\x1b\\]8;;[^\x1b\x07]*(\x1b\\\\|\x07)')
 
 
 def strip_sgr(text):
-    return SGR_RE.sub('', text)
+    return OSC8_RE.sub('', SGR_RE.sub('', text))
 
 
 def collapse_ws(text):
@@ -82,8 +83,8 @@ def run_quote_checks(program):
 
     # Link underline/blue must start after the bar, not on the bar.
     out = run('> [x](https://e.com) at start\n')
-    if '\033[4;34m' not in out \
-            or out.find('\033[4;34m') < out.find(bar):
+    if '\033[1;4;38;5;75m' not in out \
+            or out.find('\033[1;4;38;5;75m') < out.find(bar):
         print(f"FAIL [quote-link]: {out!r}")
         failures += 1
 

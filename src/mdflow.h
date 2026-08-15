@@ -44,6 +44,10 @@ mdflow_t* mdflow_open(int term_width,
                       void (*output)(const char* str, int size, void* userdata),
                       void* userdata);
 
+/* Enable or disable OSC 8 clickable hyperlinks (enabled by default).
+ * Call after mdflow_open() and before mdflow_close(). */
+int mdflow_set_osc8(mdflow_t* mf, int enable);
+
 /* Feed a chunk of Markdown input.
  * len must be non-negative; data may be NULL only when len is zero.
  * Returns 0 on success, or non-zero on invalid input, allocation failure,

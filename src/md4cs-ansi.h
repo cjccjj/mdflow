@@ -129,6 +129,11 @@ void md_ansi_renderer_destroy(MD_ANSI_RENDERER* renderer);
 /* Set the terminal width for table width limiting (0 = no limit). */
 void md_ansi_set_term_width(MD_ANSI_RENDERER* renderer, int term_width);
 
+/* Enable or disable OSC 8 hyperlink emission (enabled by default).
+ * When enabled, link destinations are emitted as OSC 8 metadata around the
+ * visible label and the "(url)" suffix is omitted. */
+void md_ansi_renderer_set_osc8(MD_ANSI_RENDERER* renderer, int enable);
+
 /* Parser callbacks. */
 int md_ansi_enter_block(MD_BLOCKTYPE type, void* detail, void* userdata);
 int md_ansi_leave_block(MD_BLOCKTYPE type, void* detail, void* userdata);

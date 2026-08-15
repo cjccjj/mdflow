@@ -15,16 +15,14 @@ One style at a time, no hurry:
 
 - **bold** for emphasis
 - *italic* for titles and notes
-- _underline_ for labels
 - ~~strikethrough~~ for edits
 - ==highlighted== for key results
 - `code` for commands and paths
-- H~2~O and x^2^ for science
-- a [link](https://example.com) keeps its URL after the text
+- H₂O and x² for science
+- a [link](https://example.com) stays clickable with its URL tucked away
 
-Two quiet extras:
+One quiet extra:
 
-- ||spoiler|| stays black-on-black until revealed
 - entities: &copy;&nbsp;&amp;&nbsp;&hearts; just work
 
 Punctuation is plain text — commas, dashes, and semicolons
@@ -47,19 +45,19 @@ Styles live inside items, not just around them:
 
 1. **install** the deps, then *verify* the version
 2. ==highlight== the key steps: `make check`
-3. math stays tidy: E = mc^2^, H~2~O — small and styled
+3. math stays tidy: E = mc², H₂O — small and styled
 4. read the [docs](https://example.com) for details
-   - nested bullets carry _underline_ and ~~strikethrough~~
+   - nested bullets carry _italics_ and ~~strikethrough~~
    - 日本語や中文もリストに混ざります 🎌 ただの文字列
 5. ~~drop~~ the old version, ==ship== the new one
 
 ## Quotes
 
 > **Bold** opens, *italic* sets mood, `code` quotes verbatim.
-> _Underline_ labels words, ~~strike~~ marks the edits.
+> _Italic_ labels words, ~~strike~~ marks the edits.
 
 > ==Highlight== the takeaway, link the
-> [source](https://example.com) — math fits: E = mc^2^, H~2~O.
+> [source](https://example.com) — math fits: E = mc², H₂O.
 
 > They nest, too:
 >> 内側は静かに、**でも決して消えない** — quiet, never lost.

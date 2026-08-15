@@ -34,6 +34,7 @@
 
 
 #define MAX_BLOCK_DEPTH         64
+#define MAX_ISOLATED_DEPTH     16
 
 struct TableColumn {
     int natural_width;
@@ -58,6 +59,7 @@ static void emit_bq_prefix(MD_ANSI_RENDERER* r);
 static int in_quote_context(const MD_ANSI_RENDERER* r);
 static int block_has_style(MD_ANSI_RENDERER* r, const MD_ANSI_STYLE* style);
 static void code_block_flush(MD_ANSI_RENDERER* r);
+static void reference_line_emit(MD_ANSI_RENDERER* r, const char* line, int len);
 
 
 /* Renderer state — persists across callbacks. */
@@ -76,6 +78,12 @@ struct MD_ANSI_RENDERER_tag {
     /* Block style stack — prefixes of blocks that have non-empty styles. */
     const char* block_style_prefix[MAX_BLOCK_DEPTH];
     int block_style_depth;
+
+    /* Isolated span style stack — link, code, highlight, image label,
+     * footnote ref, superscript, subscript. Re-applied after every reset so
+     * nested inline spans keep the enclosing span styling. */
+    const MD_ANSI_STYLE* isolated_style_stack[MAX_ISOLATED_DEPTH];
+    int isolated_style_depth;
 
     /* Emphasis nesting counters. */
     int n_bold;
@@ -106,6 +114,9 @@ struct MD_ANSI_RENDERER_tag {
     int hl_active;
     MD_HL_STATE hl_state;
 
+    /* OSC 8 hyperlink emission (on by default). */
+    int osc8_enabled;
+
     /* Href saved from inline HTML <a> tag. */
     char html_link_href[512];
     int html_link_href_len;
@@ -135,6 +146,11 @@ struct MD_ANSI_RENDERER_tag {
     /* Reference link/image label for [text][label] rendering. */
     char ref_label[512];
     int ref_label_len;
+
+    /* Reference-definition line accumulation (for OSC 8 URL wrapping). */
+    int in_reference_section;
+    char ref_line_buf[8192];
+    int ref_line_len;
 
     /* Terminal width for table column limiting (0 = no limit). */
     int table_term_width;
@@ -286,6 +302,39 @@ static void
 write_sgr_reset(MD_ANSI_RENDERER* r)
 {
     write_str(r, "\033[0m");
+}
+
+/* Write an OSC 8 hyperlink opener for href, sanitizing bytes that could
+ * terminate or reshape the escape sequence (percent-encoded). */
+static void
+write_osc8_open(MD_ANSI_RENDERER* r, const char* href, int href_len)
+{
+    static const char hex[] = "0123456789ABCDEF";
+    int i;
+
+    write_str(r, "\033]8;;");
+    for(i = 0; i < href_len; i++) {
+        unsigned char c = (unsigned char) href[i];
+        if(c == ';' || c == '\\' || c == ']' || c == '\033' || c == '\007'
+                || c < 0x20 || c == 0x7f) {
+            char tmp[4];
+            tmp[0] = '%';
+            tmp[1] = hex[c >> 4];
+            tmp[2] = hex[c & 0x0f];
+            tmp[3] = '\0';
+            write_str(r, tmp);
+        } else {
+            write_output(r, href + i, 1);
+        }
+    }
+    write_str(r, "\033\\");
+}
+
+/* Write the OSC 8 hyperlink terminator. */
+static void
+write_osc8_close(MD_ANSI_RENDERER* r)
+{
+    write_str(r, "\033]8;;\033\\");
 }
 
 /* Translate entity to its UTF-8 equivalent, or output the verbatim one
@@ -537,6 +586,26 @@ wrap_sgr_end(const char* text, int len, int start)
     return i;
 }
 
+/* Return the end of an OSC sequence (BEL or ESC \ termination). */
+static int
+wrap_osc_end(const char* text, int len, int start)
+{
+    int i = start + 2;
+
+    while(i < len) {
+        if(text[i] == '\007') {
+            i++;
+            break;
+        }
+        if(text[i] == '\033' && i + 1 < len && text[i + 1] == '\\') {
+            i += 2;
+            break;
+        }
+        i++;
+    }
+    return i;
+}
+
 /* The renderer emits full resets between style regions.  Preserve every
  * active SGR sequence after the most recent reset so a continuation line can
  * restore the same state without guessing from individual style names. */
@@ -582,6 +651,8 @@ wrap_style_advance(const char* text, int start, int end,
             j = wrap_sgr_end(text, end, i);
             wrap_style_consume(state, text + i, j - i);
             i = j;
+        } else if(text[i] == '\033' && i + 1 < end && text[i + 1] == ']') {
+            i = wrap_osc_end(text, end, i);
         } else {
             i++;
         }
@@ -700,6 +771,11 @@ wrap_content(const char* text, int len, int display_width,
 
         if(text[i] == '\033' && i + 1 < len && text[i + 1] == '[') {
             i = wrap_sgr_end(text, len, i);
+            continue;
+        }
+
+        if(text[i] == '\033' && i + 1 < len && text[i + 1] == ']') {
+            i = wrap_osc_end(text, len, i);
             continue;
         }
 
@@ -1218,6 +1294,11 @@ cell_measure(const char* str, int len, int* p_visible, int* p_min_word)
             continue;
         }
 
+        if(str[i] == '\033' && i + 1 < len && str[i + 1] == ']') {
+            i = wrap_osc_end(str, len, i);
+            continue;
+        }
+
         if(str[i] == '\n' || str[i] == '\r') {
             visible++;
             if(run > max_run)
@@ -1312,11 +1393,18 @@ write_emphasis_sgr(MD_ANSI_RENDERER* r)
     }
 }
 
-/* Re-apply all active styles: block style + spoiler + emphasis. */
+/* Re-apply all active styles: block style + isolated spans + spoiler +
+ * emphasis. Later sequences override earlier ones for shared attributes,
+ * and spoiler is applied after isolated spans so nested content stays
+ * hidden. */
 static void
 reapply_all(MD_ANSI_RENDERER* r)
 {
+    int i;
+
     reapply_block_style(r);
+    for(i = 0; i < r->isolated_style_depth; i++)
+        write_str(r, r->isolated_style_stack[i]->prefix);
     if(r->spoiler_active)
         write_str(r, r->theme->spoiler.prefix);
     write_emphasis_sgr(r);
@@ -1359,16 +1447,32 @@ style_reset_reapply(MD_ANSI_RENDERER* r)
 }
 
 static void
-open_isolated_style(MD_ANSI_RENDERER* r, const MD_ANSI_STYLE* style)
+open_isolated_style_marker(MD_ANSI_RENDERER* r, const MD_ANSI_STYLE* style,
+                           const char* marker, int marker_len)
 {
     write_sgr_reset(r);
+    reapply_all(r);
+    if(r->isolated_style_depth < MAX_ISOLATED_DEPTH)
+        r->isolated_style_stack[r->isolated_style_depth++] = style;
+    if(marker_len > 0)
+        write_output(r, marker, marker_len);
     write_str(r, style->prefix);
+    if(r->spoiler_active)
+        write_str(r, r->theme->spoiler.prefix);
+}
+
+static void
+open_isolated_style(MD_ANSI_RENDERER* r, const MD_ANSI_STYLE* style)
+{
+    open_isolated_style_marker(r, style, NULL, 0);
 }
 
 static void
 close_isolated_style(MD_ANSI_RENDERER* r, const MD_ANSI_STYLE* style)
 {
     write_str(r, style->suffix);
+    if(r->isolated_style_depth > 0)
+        r->isolated_style_depth--;
     reapply_all(r);
 }
 
@@ -1669,10 +1773,10 @@ static const MD_ANSI_THEME MD_ANSI_DEFAULT_THEME = {
     STYLE_SIMPLE("\033[1m"),                     /* table_header */
     STYLE_EMPTY,                                 /* table_cell */
 
-    STYLE_SIMPLE("\033[4;34m"),                  /* link_text */
+    STYLE_SIMPLE("\033[1;4;38;5;75m"),           /* link_text (bold underline bright blue) */
     STYLE_SIMPLE("\033[2;34m"),                  /* link_url */
 
-    STYLE_SIMPLE("\033[2m"),                     /* image_label */
+    STYLE_SIMPLE("\033[1;38;5;141m"),            /* image_label (bold bright purple) */
 
     STYLE_EMPTY,                                 /* text */
 
@@ -1718,6 +1822,7 @@ md_ansi_renderer_create(const MD_ANSI_THEME* theme,
     r->theme = (theme != NULL) ? theme : &MD_ANSI_DEFAULT_THEME;
     r->output = output;
     r->userdata = userdata;
+    r->osc8_enabled = 1;
     return r;
 }
 
@@ -1743,6 +1848,13 @@ void
 md_ansi_set_term_width(MD_ANSI_RENDERER* renderer, int term_width)
 {
     renderer->table_term_width = term_width;
+}
+
+void
+md_ansi_renderer_set_osc8(MD_ANSI_RENDERER* renderer, int enable)
+{
+    if(renderer != NULL)
+        renderer->osc8_enabled = (enable != 0);
 }
 
 
@@ -1861,6 +1973,18 @@ enter_ol(MD_ANSI_RENDERER* r, void* detail)
         r->list_item_number = 1;
 }
 
+/* Emit the task-list marker: "[ ]" for unchecked, "[✓]" for checked
+ * (GFM source uses "[x]"/"[X]"; the display uses a Unicode check mark). */
+static void
+write_task_marker(MD_ANSI_RENDERER* r, char task_mark)
+{
+    if(task_mark == ' ') {
+        write_output(r, "[ ] ", 4);
+    } else {
+        write_output(r, "[\xE2\x9C\x93] ", 6);
+    }
+}
+
 static void
 enter_li(MD_ANSI_RENDERER* r, void* detail)
 {
@@ -1885,8 +2009,7 @@ enter_li(MD_ANSI_RENDERER* r, void* detail)
     if(r->in_list_ordered) {
         write_str(r, r->theme->ordered_item.prefix);
         if(is_task) {
-            char marker[] = { '[', task_mark, ']', ' ', '\0' };
-            write_output(r, marker, 4);
+            write_task_marker(r, task_mark);
         } else {
             char num[16];
             int n = snprintf(num, sizeof(num), "%d. ", r->list_item_number);
@@ -1899,8 +2022,7 @@ enter_li(MD_ANSI_RENDERER* r, void* detail)
     } else {
         write_str(r, r->theme->bullet_item.prefix);
         if(is_task) {
-            char marker[] = { '[', task_mark, ']', ' ', '\0' };
-            write_output(r, marker, 4);
+            write_task_marker(r, task_mark);
         } else {
             unsigned char bullet[] = { 0xE2, 0x80, 0xA2, ' ', '\0' };
             write_output(r, (const char*)bullet, 4);
@@ -2081,6 +2203,8 @@ md_ansi_enter_block(MD_BLOCKTYPE type, void* detail, void* userdata)
             r->in_table_cell = 1;
             break;
         case MD_BLOCK_REFERENCE_SECTION:
+            r->in_reference_section = 1;
+            r->ref_line_len = 0;
             write_str(r, "\n");
             write_str(r, r->theme->h2.prefix);
             write_str(r, "References");
@@ -2393,6 +2517,11 @@ md_ansi_leave_block(MD_BLOCKTYPE type, void* detail, void* userdata)
             break;
 
         case MD_BLOCK_REFERENCE_SECTION:
+            if(r->ref_line_len > 0) {
+                reference_line_emit(r, r->ref_line_buf, r->ref_line_len);
+                r->ref_line_len = 0;
+            }
+            r->in_reference_section = 0;
             write_str(r, "\n");
             signal_bl(r);
             break;
@@ -2450,9 +2579,19 @@ md_ansi_enter_span(MD_SPANTYPE type, void* detail, void* userdata)
     MD_ANSI_RENDERER* r = (MD_ANSI_RENDERER*) userdata;
     (void)detail;
 
+    /* Streamed paragraph text (including span opens) can arrive before
+     * enter_block(P) fires. The pending blank-line separator set by the
+     * previous block's close must be flushed here, before the span's own
+     * output/SGR, not deferred to the first text callback. */
+    check_bl(r);
+
     /* A span at the start of a blockquote line must emit the pending │
      * prefix before its own output/SGR, otherwise the bar inherits the
      * span's styling and a full reset in emit_bq_prefix() drops it. */
+    if(r->blockquote_needs_prefix == 0
+       && in_quote_context(r)
+       && r->last_char == '\n')
+        r->blockquote_needs_prefix = 1;
     if(r->blockquote_needs_prefix)
         emit_bq_prefix(r);
 
@@ -2483,12 +2622,14 @@ md_ansi_enter_span(MD_SPANTYPE type, void* detail, void* userdata)
             break;
 
         case MD_SPAN_A:
-            open_isolated_style(r, &r->theme->link_text);
             if(detail != NULL) {
                 MD_SPAN_A_DETAIL* ad = (MD_SPAN_A_DETAIL*)detail;
                 r->link_href_len = copy_attribute_decoded(&ad->href,
                                         r->link_href, (int)sizeof(r->link_href));
             }
+            if(r->osc8_enabled && r->link_href_len > 0)
+                write_osc8_open(r, r->link_href, r->link_href_len);
+            open_isolated_style(r, &r->theme->link_text);
             break;
 
         case MD_SPAN_IMG:
@@ -2502,6 +2643,9 @@ md_ansi_enter_span(MD_SPANTYPE type, void* detail, void* userdata)
                 r->img_title_len = copy_attribute_decoded(&id->title,
                                     r->img_title, (int)sizeof(r->img_title));
             }
+            if(r->osc8_enabled && r->img_src_len > 0)
+                write_osc8_open(r, r->img_src, r->img_src_len);
+            open_isolated_style(r, &r->theme->image_label);
             break;
 
         case MD_SPAN_LATEXMATH:
@@ -2533,15 +2677,11 @@ md_ansi_enter_span(MD_SPANTYPE type, void* detail, void* userdata)
             break;
 
         case MD_SPAN_SUPERSCRIPT:
-            write_sgr_reset(r);
-            write_output(r, "^", 1);
-            write_str(r, r->theme->superscript.prefix);
+            open_isolated_style_marker(r, &r->theme->superscript, "^", 1);
             break;
 
         case MD_SPAN_SUBSCRIPT:
-            write_sgr_reset(r);
-            write_output(r, "_", 1);
-            write_str(r, r->theme->subscript.prefix);
+            open_isolated_style_marker(r, &r->theme->subscript, "_", 1);
             break;
 
         case MD_SPAN_REFERENCE_LINK:
@@ -2562,6 +2702,7 @@ md_ansi_enter_span(MD_SPANTYPE type, void* detail, void* userdata)
                 r->ref_label_len = copy_attribute_decoded(&det->label,
                                     r->ref_label, (int)sizeof(r->ref_label));
             }
+            open_isolated_style(r, &r->theme->image_label);
             break;
 
         default:
@@ -2605,23 +2746,37 @@ md_ansi_leave_span(MD_SPANTYPE type, void* detail, void* userdata)
 
         case MD_SPAN_A:
             write_str(r, r->theme->link_text.suffix);
-            emit_link_url_paren(r, r->link_href, r->link_href_len);
+            if(r->isolated_style_depth > 0)
+                r->isolated_style_depth--;
+            if(r->osc8_enabled) {
+                if(r->link_href_len > 0)
+                    write_osc8_close(r);
+            } else {
+                emit_link_url_paren(r, r->link_href, r->link_href_len);
+            }
             r->link_href_len = 0;
             reapply_all(r);
             break;
 
         case MD_SPAN_IMG:
-            write_str(r, " (");
-            write_str(r, r->theme->link_url.prefix);
-            if(r->img_src_len > 0)
-                write_output(r, r->img_src, r->img_src_len);
-            write_str(r, r->theme->link_url.suffix);
-            if(r->img_title_len > 0) {
-                write_output(r, " \"", 2);
-                write_output(r, r->img_title, r->img_title_len);
-                write_output(r, "\"", 1);
+            close_isolated_style(r, &r->theme->image_label);
+            if(r->osc8_enabled) {
+                if(r->img_src_len > 0)
+                    write_osc8_close(r);
+                write_output(r, "]", 1);
+            } else {
+                write_str(r, " (");
+                write_str(r, r->theme->link_url.prefix);
+                if(r->img_src_len > 0)
+                    write_output(r, r->img_src, r->img_src_len);
+                write_str(r, r->theme->link_url.suffix);
+                if(r->img_title_len > 0) {
+                    write_output(r, " \"", 2);
+                    write_output(r, r->img_title, r->img_title_len);
+                    write_output(r, "\"", 1);
+                }
+                write_output(r, ")]", 2);
             }
-            write_output(r, ")]", 2);
             r->img_src_len = 0;
             r->img_title_len = 0;
             break;
@@ -2667,6 +2822,7 @@ md_ansi_leave_span(MD_SPANTYPE type, void* detail, void* userdata)
             break;
 
         case MD_SPAN_REFERENCE_IMAGE:
+            close_isolated_style(r, &r->theme->image_label);
             if(r->ref_label_len > 0) {
                 write_str(r, r->theme->link_url.prefix);
                 write_output(r, " (ref:[", 7);
@@ -2703,11 +2859,16 @@ handle_html_tag(MD_ANSI_RENDERER* r, const HTML_TAG_INFO* tag)
         case HTML_TAG_IMG:
             if(r->blockquote_needs_prefix)
                 emit_bq_prefix(r);
+            if(r->osc8_enabled && tag->src_len > 0)
+                write_osc8_open(r, tag->src, tag->src_len);
             write_str(r, r->theme->image_label.prefix);
             if(tag->alt_len > 0)
                 write_output(r, tag->alt, tag->alt_len);
             write_str(r, r->theme->image_label.suffix);
-            if(tag->src_len > 0) {
+            if(r->osc8_enabled) {
+                if(tag->src_len > 0)
+                    write_osc8_close(r);
+            } else if(tag->src_len > 0) {
                 write_str(r, " (");
                 write_output(r, tag->src, tag->src_len);
                 write_str(r, ")");
@@ -2717,7 +2878,10 @@ handle_html_tag(MD_ANSI_RENDERER* r, const HTML_TAG_INFO* tag)
         case HTML_TAG_A:
             if(tag->is_closer) {
                 close_isolated_style(r, &r->theme->link_text);
-                if(r->html_link_href_len > 0) {
+                if(r->osc8_enabled) {
+                    if(r->html_link_href_len > 0)
+                        write_osc8_close(r);
+                } else if(r->html_link_href_len > 0) {
                     write_str(r, " (");
                     write_str(r, r->theme->link_url.prefix);
                     write_output(r, r->html_link_href, r->html_link_href_len);
@@ -2731,6 +2895,8 @@ handle_html_tag(MD_ANSI_RENDERER* r, const HTML_TAG_INFO* tag)
                                          (int)sizeof(r->html_link_href));
                 if(r->blockquote_needs_prefix)
                     emit_bq_prefix(r);
+                if(r->osc8_enabled && r->html_link_href_len > 0)
+                    write_osc8_open(r, r->html_link_href, r->html_link_href_len);
                 open_isolated_style(r, &r->theme->link_text);
             }
             return 1;
@@ -2945,6 +3111,85 @@ code_block_flush(MD_ANSI_RENDERER* r)
     r->hl_active = 0;
 }
 
+/* Emit one reference-definition line "[label]: dest ...".  With OSC 8
+ * enabled the destination is wrapped in a clickable hyperlink; the block
+ * style (link_url) is already active around the whole line. */
+static void
+reference_line_emit(MD_ANSI_RENDERER* r, const char* line, int len)
+{
+    int i = 0;
+    int dest_beg = -1;
+    int dest_end = -1;
+
+    if(len > 0 && line[0] == '[') {
+        for(i = 1; i < len; i++) {
+            if(line[i] == ']')
+                break;
+        }
+        if(i < len && line[i] == ']') {
+            i++;
+            if(i < len && line[i] == ':') {
+                i++;
+                while(i < len && (line[i] == ' ' || line[i] == '\t'))
+                    i++;
+                dest_beg = i;
+                while(i < len && line[i] != ' ' && line[i] != '\t')
+                    i++;
+                dest_end = i;
+            }
+        }
+    }
+
+    if(dest_beg < 0 || dest_end <= dest_beg) {
+        write_output(r, line, len);
+        return;
+    }
+
+    write_output(r, line, dest_beg);
+    if(r->osc8_enabled) {
+        write_osc8_open(r, line + dest_beg, dest_end - dest_beg);
+        write_output(r, line + dest_beg, dest_end - dest_beg);
+        write_osc8_close(r);
+    } else {
+        write_output(r, line + dest_beg, dest_end - dest_beg);
+    }
+    write_output(r, line + dest_end, len - dest_end);
+}
+
+/* Accumulate reference-section text into per-line buffers so each
+ * definition line can be emitted with a clickable destination. */
+static void
+reference_section_text(MD_ANSI_RENDERER* r, const char* text, int size)
+{
+    int i = 0;
+
+    while(i < size) {
+        if(text[i] == '\n') {
+            reference_line_emit(r, r->ref_line_buf, r->ref_line_len);
+            write_output(r, "\n", 1);
+            r->ref_line_len = 0;
+            i++;
+            continue;
+        }
+        if(r->ref_line_len >= (int)sizeof(r->ref_line_buf) - 1) {
+            /* Unusually long line: emit raw so memory stays bounded. */
+            write_output(r, r->ref_line_buf, r->ref_line_len);
+            r->ref_line_len = 0;
+            while(i < size && text[i] != '\n') {
+                write_output(r, text + i, 1);
+                i++;
+            }
+            if(i < size) {
+                write_output(r, "\n", 1);
+                i++;
+            }
+            continue;
+        }
+        r->ref_line_buf[r->ref_line_len++] = text[i];
+        i++;
+    }
+}
+
 int
 md_ansi_text(MD_TEXTTYPE type, const MD_CHAR* text, MD_SIZE size, void* userdata)
 {
@@ -3010,6 +3255,10 @@ md_ansi_text(MD_TEXTTYPE type, const MD_CHAR* text, MD_SIZE size, void* userdata
 
         html_verbatim:
         default:
+            if(r->in_reference_section) {
+                reference_section_text(r, (const char*) text, (int) size);
+                break;
+            }
             write_text_with_bq(r, text, size);
             break;
     }

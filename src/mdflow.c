@@ -60,12 +60,12 @@ mdflow_open(int term_width,
 
     memset(&mf->parser, 0, sizeof(MD_PARSER));
     mf->parser.abi_version = 0;
+    /* GFM + GitHub extensions, plus highlight.  The underscore, tilde,
+     * spoiler-pipe, and caret extensions are left off: they conflict with
+     * CommonMark/GFM syntax (_ italic, single-tilde strikethrough, table
+     * pipes) or are intentionally excluded from the CLI dialect. */
     mf->parser.flags = MD_DIALECT_GITHUB
-                      | MD_FLAG_HIGHLIGHT
-                      | MD_FLAG_SPOILERS
-                      | MD_FLAG_SUPERSCRIPTS
-                      | MD_FLAG_SUBSCRIPTS
-                      | MD_FLAG_UNDERLINE;
+                      | MD_FLAG_HIGHLIGHT;
     mf->parser.enter_block = md_ansi_enter_block;
     mf->parser.leave_block = md_ansi_leave_block;
     mf->parser.enter_span  = md_ansi_enter_span;
@@ -90,6 +90,16 @@ mdflow_write(mdflow_t* mf, const char* data, int len)
         return -1;
     return md_stream_feed(mf->stream_ctx,
                           (const MD_CHAR*) data, (MD_SIZE) len);
+}
+
+
+int
+mdflow_set_osc8(mdflow_t* mf, int enable)
+{
+    if(mf == NULL)
+        return -1;
+    md_ansi_renderer_set_osc8(mf->renderer, enable);
+    return 0;
 }
 
 

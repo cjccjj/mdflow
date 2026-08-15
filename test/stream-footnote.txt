@@ -2,8 +2,9 @@
 
 Tests for streaming-mode footnote ref/def behavior.
 Streaming unlinks refs from defs: all [^label] refs emit
-FOOTNOTE_REF callbacks during feed, and all definitions
-emit FOOTNOTE_DEF at flush time, in definition order.
+FOOTNOTE_REF callbacks during feed, and all retained definitions
+emit FOOTNOTE_DEF at flush time, in definition order. Duplicate
+normalized labels keep only their first definition.
 
 The test binary is stream-event --footnotes.
 
@@ -68,20 +69,17 @@ TEXT  "note A"  (NORMAL)
 ````````````````````````````````
 
 
-## Duplicate defs — both entries stored, both emitted
+## Duplicate defs — first entry stored, later entry ignored
 
 ```````````````````````````````` example
 [^dup]: first
 [^dup]: second
 .
-10 events
+7 events
 +BLOCK   DOC
 +BLOCK   FOOTNOTE_DEF_SECTION
 +BLOCK   FOOTNOTE_DEF  {label="dup"}
 TEXT  "first"  (NORMAL)
--BLOCK   FOOTNOTE_DEF
-+BLOCK   FOOTNOTE_DEF  {label="dup"}
-TEXT  "second"  (NORMAL)
 -BLOCK   FOOTNOTE_DEF
 -BLOCK   FOOTNOTE_DEF_SECTION
 -BLOCK   DOC
