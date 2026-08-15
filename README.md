@@ -20,26 +20,26 @@
 
 ### Comparison
 
-|             |             | <ins> mdflow </ins> | streamdown | mdcat | glow (glamour) |
-| :---------- | :---------- | :-----------------: | :--------: | :---: | :-------------: |
-| Capabilities | Streaming | ✅ | ✅ | ❌ | ❌ |
-|              | Buffering | Single line | Single line | Whole doc | Whole doc |
-|              | CommonMark | ✅ Full | ❌ | ✅ Full | ❌ |
-|              | GFM tables | ✅ | ⚠️ Limited | ⚠️ Limited | ✅ |
-| Render time  | 1 MB input | $\color{green}{\mathsf{0.03\ s}}$ | $\mathsf{8.09\ s}$ | $\mathsf{0.34\ s}$ | $\mathsf{0.64\ s}$ |
-|              | 10 MB input | $\color{green}{\mathsf{0.37\ s}}$ | $\mathsf{78.72\ s}$ | $\mathsf{2.85\ s}$ | $\mathsf{12.33\ s}$ |
-|              | 100 MB input | $\color{green}{\mathsf{3.56\ s}}$ | — | $\mathsf{27.38\ s}$ | — |
-| Peak RAM     | 1 MB input | $\color{green}{\mathsf{2.3\ MB}}$ | $\mathsf{24.8\ MB}$ | $\mathsf{48.7\ MB}$ | $\mathsf{118.3\ MB}$ |
-|              | 10 MB input | $\color{green}{\mathsf{2.3\ MB}}$ | $\mathsf{24.8\ MB}$ | $\mathsf{102.3\ MB}$ | $\mathsf{972.8\ MB}$ |
-|              | 100 MB input | $\color{green}{\mathsf{2.4\ MB}}$ | — | $\mathsf{624.6\ MB}$ | — |
-| Binary       | Language | C | Python | Rust | Go |
-|              | Size | $\color{green}{\mathsf{284.8\ KB}}$ | — | $\mathsf{11.0\ MB}$ | $\mathsf{17.2\ MB}$ |
+|             |             | <ins> mdflow </ins> | streamdown | mdcat | glow (glamour) |  
+| :---------- | :---------- | :-----------------: | :--------: | :---: | :-------------: |  
+| Capabilities | Streaming | ✅ | ✅ | ❌ | ❌ |  
+|              | Buffering | Single line | Single line | Whole doc | Whole doc |  
+|              | CommonMark | ✅ Full | ❌ | ✅ Full | ❌ |  
+|              | GFM tables | ✅ | ⚠️ Limited | ⚠️ Limited | ✅ |  
+| Render time  | 1 MB input | $\color{green}{\mathsf{0.05\ s}}$ | $\mathsf{8.09\ s}$ | $\mathsf{0.34\ s}$ | $\mathsf{0.64\ s}$ |  
+|              | 10 MB input | $\color{green}{\mathsf{0.57\ s}}$ | $\mathsf{78.72\ s}$ | $\mathsf{2.85\ s}$ | $\mathsf{12.33\ s}$ |  
+|              | 100 MB input | $\color{green}{\mathsf{5.68\ s}}$ | — | $\mathsf{27.38\ s}$ | — |  
+| Peak RAM     | 1 MB input | $\color{green}{\mathsf{2.2\ MB}}$ | $\mathsf{24.8\ MB}$ | $\mathsf{48.7\ MB}$ | $\mathsf{118.3\ MB}$ |  
+|              | 10 MB input | $\color{green}{\mathsf{2.3\ MB}}$ | $\mathsf{24.8\ MB}$ | $\mathsf{102.3\ MB}$ | $\mathsf{972.8\ MB}$ |  
+|              | 100 MB input | $\color{green}{\mathsf{2.2\ MB}}$ | — | $\mathsf{624.6\ MB}$ | — |  
+| Binary       | Language | C | Python | Rust | Go |  
+|              | Size | $\color{green}{\mathsf{301.2\ KB}}$ | — | $\mathsf{11.0\ MB}$ | $\mathsf{17.2\ MB}$ |
 
 <sub>1. see "CommonMark + GFM compliance" for deail.</sub><br>
 <sub>2. streamdown and glow did not finish the 100 MB test within 100 seconds.</sub><br>
 <sub>3. Input consisted of mixed Markdown. Performance varies by content.</sub><br>
 <sub>4. Benchmarked on GitHub Actions (Ubuntu 24.04, AMD EPYC 7763, 4 vCPUs)</sub><br>
-<sub>5. mdflow v0.1.0, streamdown 0.36.6, glow v2.1.2, and mdcat v2.7.1.</sub>
+<sub>5. mdflow v0.1.1, streamdown 0.36.6, glow v2.1.2, and mdcat v2.7.1.</sub>
 
 ---
 
