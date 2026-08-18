@@ -13,7 +13,7 @@
 ## Why mdflow
 
 - **Real-time Streaming** - must have for AI
-- **CommonMark + GFM tested** - tested against CommonMark spec (652 examples)
+- **CommonMark + GFM support tested** - tested against the CommonMark specification (652 examples)
 - **Very Fast**
 - **Flat memory** - use little memory and stays flat as input grows
 - **Lightweight** - tiny binary easy to embed in an app or resource-constrained devices
@@ -24,7 +24,7 @@
 | :---------- | :---------- | :-----------------: | :--------: | :---: | :-------------: |  
 | Capabilities | Streaming | ✅ | ✅ | ❌ | ❌ |  
 |              | Buffering | Single line | Single line | Whole doc | Whole doc |  
-|              | CommonMark | ✅ Full | ❌ | ✅ Full | ❌ |  
+|              | CommonMark | ✅ Tested* | ❌ | ✅ Tested | ❌ |
 |              | GFM tables | ✅ | ⚠️ Limited | ⚠️ Limited | ✅ |  
 | Render time  | 1 MB input | $\color{green}{\mathsf{0.05\ s}}$ | $\mathsf{8.09\ s}$ | $\mathsf{0.34\ s}$ | $\mathsf{0.64\ s}$ |  
 |              | 10 MB input | $\color{green}{\mathsf{0.57\ s}}$ | $\mathsf{78.72\ s}$ | $\mathsf{2.85\ s}$ | $\mathsf{12.33\ s}$ |  
@@ -35,7 +35,7 @@
 | Binary       | Language | C | Python | Rust | Go |  
 |              | Size | $\color{green}{\mathsf{301.2\ KB}}$ | — | $\mathsf{11.0\ MB}$ | $\mathsf{17.2\ MB}$ |
 
-<sub>1. see "CommonMark + GFM compliance" for deail.</sub><br>
+<sub>1. See "CommonMark + GFM support, extensions, and limitations" for tested coverage and known differences.</sub><br>
 <sub>2. streamdown and glow did not finish the 100 MB test within 100 seconds.</sub><br>
 <sub>3. Input consisted of mixed Markdown. Performance varies by content.</sub><br>
 <sub>4. Benchmarked on GitHub Actions (Ubuntu 24.04, AMD EPYC 7763, 4 vCPUs)</sub><br>
@@ -45,7 +45,7 @@
 
 ## Features
 
-- **Full CommonMark + GFM** - tables, strikethrough, task lists, autolinks, footnotes, and admonitions.
+- **CommonMark + GFM support** - tables, strikethrough, task lists, autolinks, footnotes, and admonitions, with known differences and streaming limitations documented below.
 - **Extras on top** - highlights.
 - **Tables** - box-drawing borders, alignment, automatic layout, and wrapping that preserves styling.
 - **Unicode-correct** - tested with CJK and emoji.
@@ -54,12 +54,11 @@
 - **HTML blocks** - raw HTML scanned and styled, entities decoded, comments hidden, and Markdown inside left literal.
 - **Clickable links** - links, autolinks, and emails are OSC 8 terminal hyperlinks; `--osc8-off` shows URLs for terminals without hyperlink support.
 
-### CommonMark + GFM compliance
+### CommonMark + GFM support, extensions, and limitations
 
-MD4C is fully CommonMark- and GFM-compliant. mdflow's parser is tested against  
-MD4C and produces identical output except for the streaming limitations below.
+This section describes mdflow's current level of Markdown support and its known differences. It is not a claim of full conformance. CommonMark and GFM define expected HTML output in their examples. This section only addresses the parser, not mdflow's ANSI renderer and its terminal presentation.
 
-For rendering, CommonMark and GFM specify HTML rendering, not terminal presentation.
+mdflow is tested against all 652 CommonMark specification examples and against the GFM features listed above. The complete example set is included in testing. MD4C is fully CommonMark-compliant; mdflow's parser produces identical output to MD4C on all examples except those involving a limitation documented below.
 
 ### Streaming limitations
 
@@ -76,7 +75,7 @@ A proper live Markdown generator already avoids features that depend on future i
 
 | Feature | mdflow behavior | Practical impact |
 | :------ | :-------------- | :--------------- |
-| Reference links | Reference shown immediately without resolving definiton, and definitions appear at the end. | Rare in live Markdown. No content is lost. |
+| Reference links | Reference shown immediately without resolving definition, and definitions appear at the end. | Rare in live Markdown. No content is lost. |
 | Footnotes | Footnote Reference shown immediately without validating definition. | Rare in live Markdown. No content is lost. |
 
 ### Other notes
