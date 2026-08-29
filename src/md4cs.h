@@ -117,7 +117,14 @@ typedef enum MD_BLOCKTYPE {
     /* Container for link reference definitions, rendered at the end
      * of the document in streaming mode.
      * Detail: NULL. */
-    MD_BLOCK_REFERENCE_SECTION
+    MD_BLOCK_REFERENCE_SECTION,
+
+    /* A single link reference definition emitted inside
+     * MD_BLOCK_REFERENCE_SECTION in streaming mode.
+     * This is a synthetic streaming event, not a CommonMark element.
+     * Detail: Structure MD_BLOCK_REFERENCE_DEF_DETAIL.
+     * No text callbacks are emitted inside this block. */
+    MD_BLOCK_REFERENCE_DEF
 #endif
 } MD_BLOCKTYPE;
 
@@ -377,6 +384,14 @@ typedef struct MD_BLOCK_FOOTNOTE_DEF_DETAIL {
 } MD_BLOCK_FOOTNOTE_DEF_DETAIL;
 
 #ifdef MD4C_STREAMING
+/* Detailed info for the synthetic streaming-only
+ * MD_BLOCK_REFERENCE_DEF event. */
+typedef struct MD_BLOCK_REFERENCE_DEF_DETAIL {
+    MD_ATTRIBUTE label;     /* Link reference label */
+    MD_ATTRIBUTE dest;      /* Link destination */
+    MD_ATTRIBUTE title;     /* Optional link title; empty if absent */
+} MD_BLOCK_REFERENCE_DEF_DETAIL;
+
 /* Detailed info for MD_SPAN_REFERENCE_LINK and MD_SPAN_REFERENCE_IMAGE. */
 typedef struct MD_SPAN_REFERENCE_LINK_DETAIL {
     MD_ATTRIBUTE label;     /* The label text (lookup key), e.g. "label" from [text][label] */

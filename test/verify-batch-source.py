@@ -40,6 +40,7 @@ STREAMING_MARKERS = [
     "md_append_line_into_current_block",
     "OFFtask_mark_off;CHARtask_mark;",
     "MD_BLOCK_REFERENCE_SECTION",
+    "MD_BLOCK_REFERENCE_DEF",
     "MD_SPAN_REFERENCE_LINK",
     "MD_SPAN_REFERENCE_IMAGE",
 ]

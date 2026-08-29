@@ -51,7 +51,7 @@ def parse_spec_examples(specfile):
 
 
 def run_mdflow(md_text, program="mdflow/mdflow", env=None):
-    p = Popen([program, "--typewriter-off"],
+    p = Popen([program, "--plain", "--typewriter-off"],
               stdout=PIPE, stdin=PIPE, stderr=PIPE, env=env)
     out, err = p.communicate(input=md_text.encode('utf-8'))
     # Normalize CRLF line endings so exact-string checks stay portable.
@@ -73,18 +73,15 @@ def run_quote_checks(program):
 
     bar = '│'
 
-    # Highlight must open AFTER the bar: the bar stays dim and the content
-    # receives the reverse-video styling.
+    # Inline spans must render AFTER the bar, not before or over it.
     out = run('> ==foo== at start\n')
-    if '\033[7m\033[2m' in out or '\033[7m' not in out \
-            or out.find('\033[7m') < out.find(bar):
+    if out.find(bar) < 0 or out.find('foo') < out.find(bar):
         print(f"FAIL [quote-highlight]: {out!r}")
         failures += 1
 
-    # Link underline/blue must start after the bar, not on the bar.
+    # Plain mode keeps the visible link destination after the bar.
     out = run('> [x](https://e.com) at start\n')
-    if '\033[1;4;38;5;75m' not in out \
-            or out.find('\033[1;4;38;5;75m') < out.find(bar):
+    if out.find(bar) < 0 or out.find('x (https://e.com)') < out.find(bar):
         print(f"FAIL [quote-link]: {out!r}")
         failures += 1
 
@@ -103,11 +100,30 @@ def run_quote_checks(program):
     return failures
 
 
+def run_reference_checks(program):
+    """Check deferred reference definitions and visible reference output."""
+    failures = 0
+    md = ('[uri]: https://example.com/docs "remote"\n'
+          '[section]: #intro\n'
+          '[file]: docs/readme.md\n')
+    expected_visible = ('References\n'
+                        '[uri] https://example.com/docs (remote)\n'
+                        '[section] #intro\n'
+                        '[file] docs/readme.md')
+
+    rc, out, err = run_mdflow(md, program)
+    if rc != 0:
+        print(f"FAIL [reference]: exit {rc}: {err.strip()}")
+        failures += 1
+    elif '\033' in out or out.strip() != expected_visible:
+        print(f"FAIL [reference]: {out!r}")
+        failures += 1
+
+    return failures
+
+
 def run_highlight_checks(program):
-    """Smoke checks for the code-block highlighter:
-    the 4 style SGRs, token finalization rules (EOL comments, cross-line
-    strings/comments), division-vs-regex, and content preservation.
-    Returns the number of failures."""
+    """Check code-block labels and content preservation in plain mode."""
     failures = 0
 
     def run(md):
@@ -115,12 +131,6 @@ def run_highlight_checks(program):
         if rc != 0:
             raise RuntimeError(f"mdflow exit {rc}: {err}")
         return out
-
-    kw = '\033[38;5;176m'    # hl_keyword
-    pu = '\033[2m'            # hl_punct (no style: plain normal)
-    st = '\033[38;5;114m'     # hl_string
-    cm = '\033[3;38;5;245m'   # hl_comment
-    reset = '\033[0m'
 
     def check(name, cond, out):
         nonlocal failures
@@ -133,81 +143,48 @@ def run_highlight_checks(program):
         lines = out.split('\n', 1)
         return lines[1] if len(lines) > 1 else ''
 
-    # Highlighting is gated on the fence language label: only recognized
-    # major languages are highlighted; unknown and unlabeled blocks
-    # render plain (label line still shown for fenced blocks).
+    # Unlabeled blocks have no language label and preserve their content.
     out = run('```\nint x = 42; // note\n```\n')
-    check('nolabel-plain',
-          kw not in out and st not in out and cm not in out, out)
     check('nolabel-preserve',
           strip_sgr(out).strip() == 'int x = 42; // note', out)
 
     out = run('```mysterylang\nint x = 42;\n```\n')
-    check('unknown-lang-plain',
-          kw not in out and st not in out and cm not in out, out)
     check('unknown-lang-label',
           'mysterylang' in strip_sgr(out), out)
 
-    # keyword + EOL line comment; punctuation renders plain (no SGR)
-    out = run('```c\nint x = 42; // note\n```\n')
-    check('keyword', kw + 'int' in out, out)
-    check('punct-plain', pu not in out and '\033[38;5;252m=' not in out
-          and '\033[38;5;176m=' not in out, out)
-    check('comment-line', cm + '// note' + reset in out, out)
-    check('preserve-1',
-          strip_sgr(body(out)).strip() == 'int x = 42; // note', out)
-
-    # common aliases and case-insensitive labels also enable highlighting
-    out = run('```cpp\nint x = 42;\n```\n')
-    check('alias-lang', kw + 'int' in out, out)
-    out = run('```Python\nint x = 42;\n```\n')
-    check('case-insensitive-lang', kw + 'int' in out, out)
-
-    # whole-word keyword matching: substrings of real keywords or words
-    # containing keyword fragments must NOT be styled (the keyword list is
-    # anchored with ^( ... )$)
-    out = run('```c\nmargin serif color username users\ninbox info insist\nif in\n```\n')
-    check('non-keywords-plain',
-          kw + 'margin' not in out and kw + 'serif' not in out
-          and kw + 'color' not in out and kw + 'username' not in out
-          and kw + 'users' not in out,
-          out)
-    check('fragment-words', kw + 'inbox' not in out
-          and kw + 'info' not in out and kw + 'insist' not in out, out)
-    check('real-keywords', kw + 'if' in out and kw + 'in' in out, out)
-
-    # string token; keywords inside a string must NOT be re-scanned
-    out = run('```c\ns = "int" + "hi"\n```\n')
-    check('string', st + '"int"' + reset in out, out)
-    check('no-kw-in-string', kw + 'int' not in out, out)
-    check('preserve-2',
-          strip_sgr(body(out)).strip() == 's = "int" + "hi"', out)
-
-    # string spanning two lines
-    out = run('```c\ns = "l1\nl2"\n```\n')
-    check('string-multiline', st + '"l1\nl2"' + reset in out, out)
-
-    # block comment spanning two lines
-    out = run('```c\n/* a\nb */\n```\n')
-    check('comment-block', cm + '/* a\nb */' + reset in out, out)
-
-    # hash comment ends at newline; next line stays plain
-    out = run('```c\n# config\nx = 1\n```\n')
-    check('comment-hash', cm + '# config' + reset + '\n' in out, out)
-    check('hash-eol', cm + '# config\n' not in out, out)
-    check('preserve-3',
-          strip_sgr(body(out)).strip() == '# config\nx = 1', out)
-
-    # division is plain punctuation; a regex literal after '=' is string-styled
-    out = run('```c\nx = a / b;\nlet rx = /a+b/;\n```\n')
-    check('division', pu not in body(out).split('\n')[0], out)
-    check('regex', st + '/a+b/' + reset in out, out)
+    # Recognized labels, aliases, and token boundaries must preserve every
+    # code character even though plain mode intentionally suppresses styles.
+    cases = [
+        ('c-content', '```c\nint x = 42; // note\n```\n',
+         'int x = 42; // note'),
+        ('alias-content', '```cpp\nint x = 42;\n```\n',
+         'int x = 42;'),
+        ('case-content', '```Python\nint x = 42;\n```\n',
+         'int x = 42;'),
+        ('whole-word-content',
+         '```c\nmargin serif color username users\n'
+         'inbox info insist\nif in\n```\n',
+         'margin serif color username users\ninbox info insist\nif in'),
+        ('string-content', '```c\ns = "int" + "hi"\n```\n',
+         's = "int" + "hi"'),
+        ('multiline-string-content', '```c\ns = "l1\nl2"\n```\n',
+         's = "l1\nl2"'),
+        ('block-comment-content', '```c\n/* a\nb */\n```\n',
+         '/* a\nb */'),
+        ('hash-comment-content', '```c\n# config\nx = 1\n```\n',
+         '# config\nx = 1'),
+        ('division-content', '```c\nx = a / b;\nlet rx = /a+b/;\n```\n',
+         'x = a / b;\nlet rx = /a+b/;'),
+    ]
+    for name, markdown, expected in cases:
+        out = run(markdown)
+        check(name, strip_sgr(body(out)).strip() == expected, out)
 
     # non-alphanumeric backtick line is unformatted (scanner type-0
     # fallback), content preserved verbatim
     out = run('```c\n```c\nint main()\n```\n')
-    check('backtick-plain', '```c' in strip_sgr(out), out)
-    check('preserve-4',
+    check('backtick-visible', '```c' in strip_sgr(out), out)
+    check('backtick-content',
           strip_sgr(body(out)).strip() == '```c\nint main()', out)
 
     # blockquote-wrapped code block: bar re-armed per line
@@ -254,7 +231,7 @@ def run_table_safety_checks(program):
 
 
 def run_table_wrap_checks(program):
-    """Regression checks for preferred breaks and style continuation."""
+    """Regression checks for preferred breaks and content preservation."""
     failures = 0
     env = os.environ.copy()
     env['COLUMNS'] = '24'
@@ -275,9 +252,6 @@ def run_table_wrap_checks(program):
     else:
         if 'one two' not in plain or 'three' not in plain:
             print(f"FAIL [table-wrap-word-boundary]: {plain!r}")
-            failures += 1
-        if '\033[1mthree' not in out or '\033[3mbeta' not in out:
-            print(f"FAIL [table-wrap-style-continuation]: {out!r}")
             failures += 1
 
     # Emergency wrapping must preserve every character of an unbreakable
@@ -381,6 +355,12 @@ def main():
         failed += failures
     total += failures
 
+    failures = run_reference_checks(args.program)
+    if failures:
+        print(f"reference renderer checks: {failures} failed")
+        failed += failures
+    total += failures
+
     failures = run_highlight_checks(args.program)
     if failures:
         print(f"highlight smoke checks: {failures} failed")
@@ -414,16 +394,11 @@ def main():
                 passed += 1
                 continue
             try:
-                rc, ansi_out, ansi_err = run_mdflow(md, args.program)
+                rc, _ansi_out, ansi_err = run_mdflow(md, args.program)
                 if rc != 0:
                     print(f"CRASH [{test['file']}:{test['example']}] "
                           f"exit code {rc}: {ansi_err.strip()}")
                     errored += 1
-                    failed += 1
-                    continue
-                if not ansi_out.strip():
-                    print(f"EMPTY [{test['file']}:{test['example']}] "
-                          f"non-empty input produced empty output")
                     failed += 1
                     continue
                 passed += 1

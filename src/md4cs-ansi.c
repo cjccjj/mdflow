@@ -59,12 +59,12 @@ static void emit_bq_prefix(MD_ANSI_RENDERER* r);
 static int in_quote_context(const MD_ANSI_RENDERER* r);
 static int block_has_style(MD_ANSI_RENDERER* r, const MD_ANSI_STYLE* style);
 static void code_block_flush(MD_ANSI_RENDERER* r);
-static void reference_line_emit(MD_ANSI_RENDERER* r, const char* line, int len);
 
 
 /* Renderer state — persists across callbacks. */
 struct MD_ANSI_RENDERER_tag {
     const MD_ANSI_THEME* theme;
+    int plain_mode;
     void (*output)(const char* str, int size, void* userdata);
     void* userdata;
     int failed;                 /* allocation/rendering failure */
@@ -75,8 +75,8 @@ struct MD_ANSI_RENDERER_tag {
     char* out_spool;
     int out_spool_len;
 
-    /* Block style stack — prefixes of blocks that have non-empty styles. */
-    const char* block_style_prefix[MAX_BLOCK_DEPTH];
+    /* Block style stack — styles of blocks that have non-empty prefixes. */
+    const MD_ANSI_STYLE* block_style_stack[MAX_BLOCK_DEPTH];
     int block_style_depth;
 
     /* Isolated span style stack — link, code, highlight, image label,
@@ -136,21 +136,20 @@ struct MD_ANSI_RENDERER_tag {
     /* Link URL for rendering after link text. */
     char link_href[512];
     int link_href_len;
+    int link_osc8_active;       /* current link's OSC 8 target is open */
+    int link_contains_image;    /* current link contains an image span */
 
-    /* Image src and title for [IMG: ...] rendering. */
+    /* Image src and title for IMG: ... rendering. */
     char img_src[512];
     int img_src_len;
     char img_title[256];
     int img_title_len;
+    int img_osc8_active;        /* current image's OSC 8 target is open */
+    int img_alt_seen;            /* image alt text produced visible output */
 
     /* Reference link/image label for [text][label] rendering. */
     char ref_label[512];
     int ref_label_len;
-
-    /* Reference-definition line accumulation (for OSC 8 URL wrapping). */
-    int in_reference_section;
-    char ref_line_buf[8192];
-    int ref_line_len;
 
     /* Terminal width for table column limiting (0 = no limit). */
     int table_term_width;
@@ -298,9 +297,30 @@ write_str(MD_ANSI_RENDERER* r, const char* str)
     write_output(r, str, (int) strlen(str));
 }
 
+/* Theme styles are independent from plain mode.  Keep all style writes
+ * behind these helpers so a non-empty theme cannot leak SGR bytes when the
+ * renderer is configured for plain output. */
+static void
+write_style_prefix(MD_ANSI_RENDERER* r, const MD_ANSI_STYLE* style)
+{
+    if(!r->plain_mode && style != NULL && style->prefix != NULL
+            && style->prefix_len > 0)
+        write_output(r, style->prefix, style->prefix_len);
+}
+
+static void
+write_style_suffix(MD_ANSI_RENDERER* r, const MD_ANSI_STYLE* style)
+{
+    if(!r->plain_mode && style != NULL && style->suffix != NULL
+            && style->suffix_len > 0)
+        write_output(r, style->suffix, style->suffix_len);
+}
+
 static void
 write_sgr_reset(MD_ANSI_RENDERER* r)
 {
+    if(r->plain_mode)
+        return;
     write_str(r, "\033[0m");
 }
 
@@ -325,6 +345,69 @@ write_osc8_open(MD_ANSI_RENDERER* r, const char* href, int href_len)
             write_str(r, tmp);
         } else {
             write_output(r, href + i, 1);
+        }
+    }
+    write_str(r, "\033\\");
+}
+
+/* Write an OSC 8 hyperlink opener from an MD_ATTRIBUTE.  The attribute is
+ * already normalized by the parser, but entities still need decoding so the
+ * target follows the same visible text as render_attribute_to_output(). */
+static void
+write_osc8_attribute_open(MD_ANSI_RENDERER* r, const MD_ATTRIBUTE* attr)
+{
+    static const char hex[] = "0123456789ABCDEF";
+    int i;
+
+    write_str(r, "\033]8;;");
+    if(attr != NULL && attr->substr_offsets != NULL) {
+        for(i = 0; attr->substr_offsets[i] < attr->size; i++) {
+            MD_TEXTTYPE type = attr->substr_types[i];
+            MD_OFFSET off = attr->substr_offsets[i];
+            MD_SIZE size = attr->substr_offsets[i+1] - off;
+            const MD_CHAR* text = attr->text + off;
+            MD_SIZE j;
+
+            if(type == MD_TEXT_ENTITY) {
+                char decoded[8];
+                int decoded_size = entity_decode((const char*) text,
+                                                  (int) size, decoded);
+                if(decoded_size > 0) {
+                    for(j = 0; j < (MD_SIZE) decoded_size; j++) {
+                        unsigned char c = (unsigned char) decoded[j];
+                        if(c == ';' || c == '\\' || c == ']' || c == '\033'
+                                || c == '\007' || c < 0x20 || c == 0x7f) {
+                            char escaped[3];
+                            escaped[0] = '%';
+                            escaped[1] = hex[c >> 4];
+                            escaped[2] = hex[c & 0x0f];
+                            write_output(r, escaped, 3);
+                        } else {
+                            write_output(r, (const char*) decoded + j, 1);
+                        }
+                    }
+                    continue;
+                }
+            } else if(type == MD_TEXT_NULLCHAR) {
+                static const char replacement[] = "\xef\xbf\xbd";
+                for(j = 0; j < sizeof(replacement) - 1; j++)
+                    write_output(r, replacement + j, 1);
+                continue;
+            }
+
+            for(j = 0; j < size; j++) {
+                unsigned char c = (unsigned char) text[j];
+                if(c == ';' || c == '\\' || c == ']' || c == '\033'
+                        || c == '\007' || c < 0x20 || c == 0x7f) {
+                    char escaped[3];
+                    escaped[0] = '%';
+                    escaped[1] = hex[c >> 4];
+                    escaped[2] = hex[c & 0x0f];
+                    write_output(r, escaped, 3);
+                } else {
+                    write_output(r, (const char*) text + j, 1);
+                }
+            }
         }
     }
     write_str(r, "\033\\");
@@ -730,7 +813,7 @@ wrap_save_slice(struct WrappedSlice** p_slices, int* p_count, int* p_cap,
  * active SGR state, and non-final slices end with a reset. */
 static int
 wrap_content(const char* text, int len, int display_width,
-             struct WrappedSlice** p_out)
+             int plain_mode, struct WrappedSlice** p_out)
 {
     struct WrapUnit* units = NULL;
     struct WrapLine* lines = NULL;
@@ -999,7 +1082,7 @@ wrap_content(const char* text, int len, int display_width,
         if(wrap_copy_range(text, source_start, source_end, &state,
                            &buf, &buf_len, &buf_cap) != 0)
             goto error;
-        if(!is_last
+        if(!plain_mode && !is_last
                 && wrap_buffer_append(&buf, &buf_len, &buf_cap,
                                       "\033[0m", 4) != 0)
             goto error;
@@ -1353,9 +1436,8 @@ static void
 reapply_block_style(MD_ANSI_RENDERER* r)
 {
     if(r->block_style_depth > 0) {
-        const char* prefix = r->block_style_prefix[r->block_style_depth - 1];
-        if(prefix != NULL  &&  *prefix != '\0')
-            write_str(r, prefix);
+        write_style_prefix(r,
+                           r->block_style_stack[r->block_style_depth - 1]);
     }
 }
 
@@ -1366,6 +1448,9 @@ write_emphasis_sgr(MD_ANSI_RENDERER* r)
     char buf[64];
     int pos = 0;
     int need_semi = 0;
+
+    if(r->plain_mode)
+        return;
 
     if(r->n_bold > 0) {
         buf[pos++] = '\033'; buf[pos++] = '[';
@@ -1404,9 +1489,9 @@ reapply_all(MD_ANSI_RENDERER* r)
 
     reapply_block_style(r);
     for(i = 0; i < r->isolated_style_depth; i++)
-        write_str(r, r->isolated_style_stack[i]->prefix);
+        write_style_prefix(r, r->isolated_style_stack[i]);
     if(r->spoiler_active)
-        write_str(r, r->theme->spoiler.prefix);
+        write_style_prefix(r, &r->theme->spoiler);
     write_emphasis_sgr(r);
 }
 
@@ -1456,9 +1541,9 @@ open_isolated_style_marker(MD_ANSI_RENDERER* r, const MD_ANSI_STYLE* style,
         r->isolated_style_stack[r->isolated_style_depth++] = style;
     if(marker_len > 0)
         write_output(r, marker, marker_len);
-    write_str(r, style->prefix);
+    write_style_prefix(r, style);
     if(r->spoiler_active)
-        write_str(r, r->theme->spoiler.prefix);
+        write_style_prefix(r, &r->theme->spoiler);
 }
 
 static void
@@ -1470,10 +1555,58 @@ open_isolated_style(MD_ANSI_RENDERER* r, const MD_ANSI_STYLE* style)
 static void
 close_isolated_style(MD_ANSI_RENDERER* r, const MD_ANSI_STYLE* style)
 {
-    write_str(r, style->suffix);
+    write_style_suffix(r, style);
     if(r->isolated_style_depth > 0)
         r->isolated_style_depth--;
     reapply_all(r);
+}
+
+/* Report whether an enclosing span already owns the normal link-text
+ * styling.  Images use that same style for their visible link text. */
+static int
+link_style_is_active(const MD_ANSI_RENDERER* r)
+{
+    int i;
+
+    for(i = 0; i < r->isolated_style_depth; i++) {
+        if(r->isolated_style_stack[i] == &r->theme->link_text)
+            return 1;
+    }
+    return 0;
+}
+
+/* Render a reference label in the same style used by footnote labels. */
+static void
+write_reference_label(MD_ANSI_RENDERER* r, const char* label, int label_len)
+{
+    write_style_prefix(r, &r->theme->footnote_ref);
+    write_output(r, "[", 1);
+    if(label_len > 0)
+        write_output(r, label, label_len);
+    write_output(r, "]", 1);
+    write_style_suffix(r, &r->theme->footnote_ref);
+}
+
+/* Render the synthetic marker identifying a reference-style link. */
+static void
+write_reference_hint(MD_ANSI_RENDERER* r, const char* label, int label_len)
+{
+    write_style_prefix(r, &r->theme->metadata);
+    write_output(r, "ref:", 4);
+    write_style_suffix(r, &r->theme->metadata);
+    write_reference_label(r, label, label_len);
+}
+
+/* Render a reference-definition label from a parsed attribute. */
+static void
+write_reference_attribute_label(MD_ANSI_RENDERER* r,
+                                const MD_ATTRIBUTE* label)
+{
+    write_style_prefix(r, &r->theme->footnote_ref);
+    write_output(r, "[", 1);
+    render_attribute_to_output(r, label);
+    write_output(r, "]", 1);
+    write_style_suffix(r, &r->theme->footnote_ref);
 }
 
 /* Emit " (url)" with link_url theme styling. */
@@ -1483,10 +1616,44 @@ emit_link_url_paren(MD_ANSI_RENDERER* r, const char* href, int href_len)
     if(href_len <= 0)
         return;
     write_str(r, " (");
-    write_str(r, r->theme->link_url.prefix);
+    write_style_prefix(r, &r->theme->link_url);
     write_output(r, href, href_len);
-    write_str(r, r->theme->link_url.suffix);
+    write_style_suffix(r, &r->theme->link_url);
     write_str(r, ")");
+}
+
+/* Emit a visible OSC 8 link label using the normal link-text style. */
+static void
+emit_osc8_link_text(MD_ANSI_RENDERER* r, const char* href, int href_len)
+{
+    if(href_len <= 0)
+        return;
+    write_osc8_open(r, href, href_len);
+    write_style_prefix(r, &r->theme->link_text);
+    write_output(r, href, href_len);
+    write_style_suffix(r, &r->theme->link_text);
+    write_osc8_close(r);
+}
+
+/* Emit an image destination outside the image's link-text style.  Resetting
+ * first prevents an enclosing link from making this URL look like link text;
+ * the enclosing styles are restored after the complete fallback. */
+static void
+emit_image_url_paren(MD_ANSI_RENDERER* r)
+{
+    write_sgr_reset(r);
+    write_str(r, " (");
+    write_style_prefix(r, &r->theme->link_url);
+    if(r->img_src_len > 0)
+        write_output(r, r->img_src, r->img_src_len);
+    write_style_suffix(r, &r->theme->link_url);
+    if(r->img_title_len > 0) {
+        write_output(r, " \"", 2);
+        write_output(r, r->img_title, r->img_title_len);
+        write_output(r, "\"", 1);
+    }
+    write_output(r, ")", 1);
+    reapply_all(r);
 }
 
 static int
@@ -1541,8 +1708,8 @@ push_block_style(MD_ANSI_RENDERER* r, const MD_ANSI_STYLE* style)
     if(!block_has_style(r, style))
         return;
     if(r->block_style_depth < MAX_BLOCK_DEPTH)
-        r->block_style_prefix[r->block_style_depth++] = style->prefix;
-    write_str(r, style->prefix);
+        r->block_style_stack[r->block_style_depth++] = style;
+    write_style_prefix(r, style);
 }
 
 static void
@@ -1732,7 +1899,7 @@ table_free_all(MD_ANSI_RENDERER* r)
 
 
 /********************************
- ***  Default theme           ***
+ ***  Built-in themes        ***
  ********************************/
 
 #define STYLE_SIMPLE(pre) \
@@ -1742,20 +1909,17 @@ table_free_all(MD_ANSI_RENDERER* r)
     { "", 0, "", 0 }
 
 static const MD_ANSI_THEME MD_ANSI_DEFAULT_THEME = {
-    STYLE_SIMPLE("\033[1;48;5;63;38;5;228m"),   /* h1 */
+    STYLE_SIMPLE("\033[1;48;5;63;38;5;228m"),    /* h1 */
     STYLE_SIMPLE("\033[1;34m"),                  /* h2 */
     STYLE_SIMPLE("\033[1;34m"),                  /* h3 */
     STYLE_SIMPLE("\033[1;34m"),                  /* h4 */
     STYLE_SIMPLE("\033[1;34m"),                  /* h5 */
     STYLE_SIMPLE("\033[1;34m"),                  /* h6 */
 
-    STYLE_SIMPLE("\033[1m"),                     /* bold */
-    STYLE_SIMPLE("\033[3m"),                     /* italic */
-    STYLE_SIMPLE("\033[9m"),                     /* strikethrough */
-
+    /* Inline emphasis is composed separately by write_emphasis_sgr():
+     * runtime nesting counters must be combined and re-applied together. */
     STYLE_SIMPLE("\033[38;5;215;48;5;236m"),    /* inline_code */
     STYLE_EMPTY,                                 /* code_block (no base style) */
-    STYLE_SIMPLE("\033[3;2;33m"),                /* code_block_lang (italic dim yellow) */
 
     STYLE_SIMPLE("\033[38;5;252m"),              /* hl_normal (light gray) */
     STYLE_SIMPLE("\033[38;5;176m"),              /* hl_keyword */
@@ -1765,22 +1929,22 @@ static const MD_ANSI_THEME MD_ANSI_DEFAULT_THEME = {
 
     STYLE_SIMPLE("\033[2m"),                     /* hr */
 
-    STYLE_SIMPLE("\033[2m"),                     /* bullet_item */
-    STYLE_SIMPLE("\033[2m"),                     /* ordered_item */
+    STYLE_EMPTY,                                 /* bullet_item: no unordered/task marker style */
+    STYLE_EMPTY,                                 /* ordered_item: no numbered/task marker style */
     STYLE_SIMPLE("\033[2m"),                     /* blockquote */
 
     STYLE_SIMPLE("\033[2m"),                     /* table_border */
-    STYLE_SIMPLE("\033[1m"),                     /* table_header */
+    STYLE_EMPTY,                                 /* table_header */
     STYLE_EMPTY,                                 /* table_cell */
 
-    STYLE_SIMPLE("\033[1;4;38;5;75m"),           /* link_text (bold underline bright blue) */
-    STYLE_SIMPLE("\033[2;34m"),                  /* link_url */
+    STYLE_SIMPLE("\033[1;4;38;5;35m"),           /* link_text (bold underline green-teal) */
+    STYLE_SIMPLE("\033[2;38;5;30m"),             /* link_url (dim teal) */
 
-    STYLE_SIMPLE("\033[1;38;5;141m"),            /* image_label (bold bright purple) */
+    STYLE_SIMPLE("\033[1;38;5;141m"),            /* image_mark (bold bright purple) */
 
     STYLE_EMPTY,                                 /* text */
 
-    STYLE_SIMPLE("\033[2;34m"),                  /* footnote_ref */
+    STYLE_SIMPLE("\033[2;38;5;27m"),            /* footnote_ref (dim blue) */
 
     STYLE_SIMPLE("\033[1;33m"),                  /* admonition (fallback) */
     STYLE_SIMPLE("\033[1;36m"),                  /* admonition_note (cyan) */
@@ -1789,18 +1953,135 @@ static const MD_ANSI_THEME MD_ANSI_DEFAULT_THEME = {
     STYLE_SIMPLE("\033[1;33m"),                  /* admonition_warning (yellow) */
     STYLE_SIMPLE("\033[1;31m"),                  /* admonition_caution (red) */
 
-    STYLE_SIMPLE("\033[4m"),                     /* underline */
     STYLE_SIMPLE("\033[7m"),                     /* highlight */
     STYLE_SIMPLE("\033[2;33m"),                  /* spoiler_label (dim yellow) */
     STYLE_SIMPLE("\033[38;5;232;48;5;232m"),     /* spoiler (invisible: black on black) */
     STYLE_SIMPLE("\033[31m"),                    /* superscript */
     STYLE_SIMPLE("\033[31m"),                    /* subscript */
+    STYLE_SIMPLE("\033[3;2;33m"),                /* metadata (italic dim yellow) */
+};
+
+static const MD_ANSI_THEME MD_ANSI_TERM_256_THEME = {
+    STYLE_SIMPLE("\033[1;48;5;27;38;5;228m"),   /* h1 */
+    STYLE_SIMPLE("\033[1;38;5;27m"),            /* h2 */
+    STYLE_SIMPLE("\033[1;38;5;27m"),            /* h3 */
+    STYLE_SIMPLE("\033[1;38;5;27m"),            /* h4 */
+    STYLE_SIMPLE("\033[1;38;5;27m"),            /* h5 */
+    STYLE_SIMPLE("\033[1;38;5;27m"),            /* h6 */
+
+    /* Inline emphasis is composed separately by write_emphasis_sgr():
+     * runtime nesting counters must be combined and re-applied together. */
+    STYLE_SIMPLE("\033[38;5;215;48;5;236m"),    /* inline_code */
+    STYLE_EMPTY,                                 /* code_block (no base style) */
+
+    STYLE_SIMPLE("\033[38;5;252m"),              /* hl_normal (light gray) */
+    STYLE_SIMPLE("\033[38;5;176m"),              /* hl_keyword */
+    STYLE_EMPTY,                                 /* hl_punct (plain) */
+    STYLE_SIMPLE("\033[38;5;114m"),              /* hl_string */
+    STYLE_SIMPLE("\033[3;38;5;245m"),            /* hl_comment (italic) */
+
+    STYLE_SIMPLE("\033[2m"),                     /* hr */
+
+    STYLE_EMPTY,                                 /* bullet_item: no unordered/task marker style */
+    STYLE_EMPTY,                                 /* ordered_item: no numbered/task marker style */
+    STYLE_SIMPLE("\033[2m"),                     /* blockquote */
+
+    STYLE_SIMPLE("\033[2m"),                     /* table_border */
+    STYLE_EMPTY,                                 /* table_header */
+    STYLE_EMPTY,                                 /* table_cell */
+
+    STYLE_SIMPLE("\033[1;4;38;5;29m"),           /* link_text (bold underline green-teal) */
+    STYLE_SIMPLE("\033[2;38;5;36m"),             /* link_url (dim turquoise) */
+
+    STYLE_SIMPLE("\033[1;38;5;205m"),            /* image_mark (bold pink) */
+
+    STYLE_SIMPLE("\033[38;5;234m"),              /* text (very dark gray) */
+
+    STYLE_SIMPLE("\033[2;38;5;27m"),            /* footnote_ref (dim blue) */
+
+    STYLE_SIMPLE("\033[1;38;5;130m"),            /* admonition (fallback) */
+    STYLE_SIMPLE("\033[1;38;5;25m"),             /* admonition_note (blue) */
+    STYLE_SIMPLE("\033[1;38;5;28m"),             /* admonition_tip (green) */
+    STYLE_SIMPLE("\033[1;38;5;90m"),             /* admonition_important (purple) */
+    STYLE_SIMPLE("\033[1;38;5;136m"),            /* admonition_warning (ochre) */
+    STYLE_SIMPLE("\033[1;38;5;124m"),            /* admonition_caution (red) */
+
+    STYLE_SIMPLE("\033[7m"),                     /* highlight */
+    STYLE_SIMPLE("\033[2;38;5;130m"),            /* spoiler_label (dim ochre) */
+    STYLE_SIMPLE("\033[38;5;255;48;5;255m"),    /* spoiler (invisible: white on white) */
+    STYLE_SIMPLE("\033[38;5;124m"),              /* superscript */
+    STYLE_SIMPLE("\033[38;5;124m"),              /* subscript */
+    STYLE_SIMPLE("\033[3;2;38;5;220m"),          /* metadata (italic dim yellow) */
+};
+
+static const MD_ANSI_THEME MD_ANSI_PLAIN_THEME = {
+    STYLE_EMPTY,                                 /* h1 */
+    STYLE_EMPTY,                                 /* h2 */
+    STYLE_EMPTY,                                 /* h3 */
+    STYLE_EMPTY,                                 /* h4 */
+    STYLE_EMPTY,                                 /* h5 */
+    STYLE_EMPTY,                                 /* h6 */
+
+    /* Inline emphasis is omitted by plain_mode. */
+    STYLE_EMPTY,                                 /* inline_code */
+    STYLE_EMPTY,                                 /* code_block */
+
+    STYLE_EMPTY,                                 /* hl_normal */
+    STYLE_EMPTY,                                 /* hl_keyword */
+    STYLE_EMPTY,                                 /* hl_punct */
+    STYLE_EMPTY,                                 /* hl_string */
+    STYLE_EMPTY,                                 /* hl_comment */
+
+    STYLE_EMPTY,                                 /* hr */
+
+    STYLE_EMPTY,                                 /* bullet_item */
+    STYLE_EMPTY,                                 /* ordered_item */
+    STYLE_EMPTY,                                 /* blockquote */
+
+    STYLE_EMPTY,                                 /* table_border */
+    STYLE_EMPTY,                                 /* table_header */
+    STYLE_EMPTY,                                 /* table_cell */
+
+    STYLE_EMPTY,                                 /* link_text */
+    STYLE_EMPTY,                                 /* link_url */
+
+    STYLE_EMPTY,                                 /* image_mark */
+
+    STYLE_EMPTY,                                 /* text */
+
+    STYLE_EMPTY,                                 /* footnote_ref */
+
+    STYLE_EMPTY,                                 /* admonition (fallback) */
+    STYLE_EMPTY,                                 /* admonition_note */
+    STYLE_EMPTY,                                 /* admonition_tip */
+    STYLE_EMPTY,                                 /* admonition_important */
+    STYLE_EMPTY,                                 /* admonition_warning */
+    STYLE_EMPTY,                                 /* admonition_caution */
+
+    STYLE_EMPTY,                                 /* highlight */
+    STYLE_EMPTY,                                 /* spoiler_label */
+    STYLE_EMPTY,                                 /* spoiler */
+    STYLE_EMPTY,                                 /* superscript */
+    STYLE_EMPTY,                                 /* subscript */
+    STYLE_EMPTY,                                 /* metadata */
 };
 
 const MD_ANSI_THEME*
 md_ansi_default_theme(void)
 {
     return &MD_ANSI_DEFAULT_THEME;
+}
+
+const MD_ANSI_THEME*
+md_ansi_term_256_theme(void)
+{
+    return &MD_ANSI_TERM_256_THEME;
+}
+
+const MD_ANSI_THEME*
+md_ansi_plain_theme(void)
+{
+    return &MD_ANSI_PLAIN_THEME;
 }
 
 
@@ -1839,7 +2120,6 @@ md_ansi_renderer_destroy(MD_ANSI_RENDERER* renderer)
     }
     free(renderer->out_spool);
     hl_release(&renderer->hl_state);
-    free(renderer->table_cell_buf);
     table_free_all(renderer);
     free(renderer);
 }
@@ -1848,6 +2128,22 @@ void
 md_ansi_set_term_width(MD_ANSI_RENDERER* renderer, int term_width)
 {
     renderer->table_term_width = term_width;
+}
+
+void
+md_ansi_renderer_set_theme(MD_ANSI_RENDERER* renderer,
+                           const MD_ANSI_THEME* theme)
+{
+    if(renderer == NULL)
+        return;
+    renderer->theme = (theme != NULL) ? theme : &MD_ANSI_DEFAULT_THEME;
+}
+
+void
+md_ansi_renderer_set_plain_mode(MD_ANSI_RENDERER* renderer, int enable)
+{
+    if(renderer != NULL)
+        renderer->plain_mode = (enable != 0);
 }
 
 void
@@ -1885,7 +2181,6 @@ get_block_style(MD_ANSI_RENDERER* r, MD_BLOCKTYPE type, void* detail)
          * not via the block style stack. */
         case MD_BLOCK_TH:               return &r->theme->table_header;
         case MD_BLOCK_TD:               return &r->theme->table_cell;
-        case MD_BLOCK_REFERENCE_SECTION: return &r->theme->link_url;
         default:                        return NULL;
     }
 }
@@ -1940,12 +2235,13 @@ static void limit_table_widths(MD_ANSI_RENDERER* r, int* widths, int n_cols,
                                int term_width);
 static void redraw_table(MD_ANSI_RENDERER* r);
 static int wrap_content(const char* text, int len, int display_width,
-                        struct WrappedSlice** p_out);
+                        int plain_mode, struct WrappedSlice** p_out);
 static void free_slices(struct WrappedSlice* slices, int n);
 static void table_store_cell(MD_ANSI_RENDERER* r);
 static void table_leave_tr(MD_ANSI_RENDERER* r);
 static void table_leave_thead(MD_ANSI_RENDERER* r);
 static void table_leave_table(MD_ANSI_RENDERER* r);
+static void render_complete_table(MD_ANSI_RENDERER* r);
 
 
 /********************************
@@ -1973,8 +2269,9 @@ enter_ol(MD_ANSI_RENDERER* r, void* detail)
         r->list_item_number = 1;
 }
 
-/* Emit the task-list marker: "[ ]" for unchecked, "[✓]" for checked
- * (GFM source uses "[x]"/"[X]"; the display uses a Unicode check mark). */
+/* Emit the hard-coded task-list marker: "[ ]" for unchecked, "[✓]" for
+ * checked.  The marker inherits the surrounding bullet_item or ordered_item
+ * style; there is no separate task-marker theme field. */
 static void
 write_task_marker(MD_ANSI_RENDERER* r, char task_mark)
 {
@@ -2007,27 +2304,27 @@ enter_li(MD_ANSI_RENDERER* r, void* detail)
         write_output(r, "  ", 2);
 
     if(r->in_list_ordered) {
-        write_str(r, r->theme->ordered_item.prefix);
+        char num[16];
+        int n = snprintf(num, sizeof(num), "%d. ", r->list_item_number);
+
+        write_style_prefix(r, &r->theme->ordered_item);
+        if(r->list_item_number > 0)
+            r->list_item_number++;
+        if(n > 0)
+            write_output(r, num, n);
         if(is_task) {
             write_task_marker(r, task_mark);
-        } else {
-            char num[16];
-            int n = snprintf(num, sizeof(num), "%d. ", r->list_item_number);
-            if(r->list_item_number > 0)
-                r->list_item_number++;
-            if(n > 0)
-                write_output(r, num, n);
         }
-        write_str(r, r->theme->ordered_item.suffix);
+        write_style_suffix(r, &r->theme->ordered_item);
     } else {
-        write_str(r, r->theme->bullet_item.prefix);
+        write_style_prefix(r, &r->theme->bullet_item);
         if(is_task) {
             write_task_marker(r, task_mark);
         } else {
             unsigned char bullet[] = { 0xE2, 0x80, 0xA2, ' ', '\0' };
             write_output(r, (const char*)bullet, 4);
         }
-        write_str(r, r->theme->bullet_item.suffix);
+        write_style_suffix(r, &r->theme->bullet_item);
     }
 
     /* Track that only the marker has been written so far: a paragraph
@@ -2052,9 +2349,9 @@ enter_code(MD_ANSI_RENDERER* r, void* detail)
              * language; unknown and unlabeled blocks render plain. */
             r->hl_active = hl_lang_supported((const char*) cd->lang.text,
                                              (int) cd->lang.size);
-            write_str(r, r->theme->code_block_lang.prefix);
+            write_style_prefix(r, &r->theme->metadata);
             render_attribute_to_output(r, &cd->lang);
-            write_str(r, r->theme->code_block_lang.suffix);
+            write_style_suffix(r, &r->theme->metadata);
             write_str(r, "\n");
         }
     }
@@ -2086,8 +2383,7 @@ enter_admonition(MD_ANSI_RENDERER* r, void* detail)
         else
             r->admonition_style = &r->theme->admonition;
 
-        if(r->admonition_style->prefix_len > 0)
-            write_str(r, r->admonition_style->prefix);
+        write_style_prefix(r, r->admonition_style);
         write_output(r, "[", 1);
         render_attribute_to_output(r, &ad->type);
         write_output(r, "]\n", 2);
@@ -2190,32 +2486,59 @@ md_ansi_enter_block(MD_BLOCKTYPE type, void* detail, void* userdata)
         case MD_BLOCK_FOOTNOTE_DEF:
             if(detail != NULL) {
                 MD_BLOCK_FOOTNOTE_DEF_DETAIL* det = (MD_BLOCK_FOOTNOTE_DEF_DETAIL*)detail;
-                write_str(r, r->theme->footnote_ref.prefix);
+                write_style_prefix(r, &r->theme->footnote_ref);
                 write_output(r, "[", 1);
                 write_output(r, det->label.text, det->label.size);
                 write_output(r, "] ", 2);
-                write_str(r, r->theme->footnote_ref.suffix);
+                write_style_suffix(r, &r->theme->footnote_ref);
             }
             break;
         case MD_BLOCK_TH:
         case MD_BLOCK_TD:
-            /* Redirect style write into cell buffer (may be discarded below). */
+            /* Start each cell before push_block_style() captures its style
+             * prefix in the scratch buffer. */
             r->in_table_cell = 1;
+            r->table_cell_len = 0;
             break;
         case MD_BLOCK_REFERENCE_SECTION:
-            r->in_reference_section = 1;
-            r->ref_line_len = 0;
             write_str(r, "\n");
-            write_str(r, r->theme->h2.prefix);
+            write_style_prefix(r, &r->theme->h2);
             write_str(r, "References");
-            write_str(r, r->theme->h2.suffix);
+            write_style_suffix(r, &r->theme->h2);
             write_str(r, "\n");
+            break;
+        case MD_BLOCK_REFERENCE_DEF:
+            {
+                MD_BLOCK_REFERENCE_DEF_DETAIL* def =
+                    (MD_BLOCK_REFERENCE_DEF_DETAIL*) detail;
+                if(def != NULL) {
+                    write_reference_attribute_label(r, &def->label);
+                    write_output(r, " ", 1);
+                    if(def->dest.size > 0) {
+                        write_style_prefix(r, &r->theme->link_url);
+                        if(r->osc8_enabled && !r->plain_mode)
+                            write_osc8_attribute_open(r, &def->dest);
+                        render_attribute_to_output(r, &def->dest);
+                        if(r->osc8_enabled && !r->plain_mode)
+                            write_osc8_close(r);
+                        write_style_suffix(r, &r->theme->link_url);
+                    }
+                    if(def->title.size > 0) {
+                        write_output(r, " ", 1);
+                        write_style_prefix(r, &r->theme->metadata);
+                        write_output(r, "(", 1);
+                        render_attribute_to_output(r, &def->title);
+                        write_output(r, ")", 1);
+                        write_style_suffix(r, &r->theme->metadata);
+                    }
+                }
+            }
             break;
         case MD_BLOCK_FOOTNOTE_DEF_SECTION:
             write_str(r, "\n");
-            write_str(r, r->theme->h2.prefix);
+            write_style_prefix(r, &r->theme->h2);
             write_str(r, "Footnotes");
-            write_str(r, r->theme->h2.suffix);
+            write_style_suffix(r, &r->theme->h2);
             write_str(r, "\n");
             break;
         default:
@@ -2234,10 +2557,6 @@ md_ansi_enter_block(MD_BLOCKTYPE type, void* detail, void* userdata)
         case MD_BLOCK_TR:         enter_tr(r); break;
         case MD_BLOCK_TH:
         case MD_BLOCK_TD:
-            /* Reset cell buffer after style push — matches prior behavior
-             * where TH bold prefix was written then discarded by len=0. */
-            r->in_table_cell = 1;
-            r->table_cell_len = 0;
             if(r->table_col == INT_MAX
                     || table_ensure_columns(r, r->table_col + 1) != 0) {
                 r->failed = 1;
@@ -2322,6 +2641,10 @@ table_leave_tr(MD_ANSI_RENDERER* r)
     if(!(r->table_in_body  &&  r->table_row_active
             &&  r->table_n_rows > 0))
         return;
+    if(r->plain_mode) {
+        r->table_row_active = 0;
+        return;
+    }
     {
         int last = r->table_n_rows - 1;
         r->table_row_active = 0;
@@ -2409,6 +2732,11 @@ table_leave_thead(MD_ANSI_RENDERER* r)
     if(!(r->in_table  &&  !r->table_header_rendered))
         return;
 
+    if(r->plain_mode) {
+        r->table_header_rendered = 1;
+        return;
+    }
+
     if(n_cols > 0) {
         widths = (int*) malloc((size_t)n_cols * sizeof(int));
         if(widths == NULL) {
@@ -2451,10 +2779,65 @@ table_leave_thead(MD_ANSI_RENDERER* r)
 }
 
 static void
+render_complete_table(MD_ANSI_RENDERER* r)
+{
+    int n_cols = r->table_col_count;
+    int* widths;
+    int i;
+    const struct TableCell* header_cells = NULL;
+    int hlines;
+
+    if(n_cols <= 0)
+        return;
+
+    widths = (int*) malloc((size_t)n_cols * sizeof(int));
+    if(widths == NULL) {
+        r->failed = 1;
+        return;
+    }
+    for(i = 0; i < n_cols; i++) {
+        widths[i] = r->table_columns[i].natural_width;
+        if(widths[i] < 3)
+            widths[i] = 3;
+        r->table_columns[i].rendered_width = widths[i];
+    }
+    if(r->table_term_width > 0)
+        limit_table_widths(r, widths, n_cols, r->table_term_width);
+    if(r->failed) {
+        free(widths);
+        return;
+    }
+    for(i = 0; i < n_cols; i++)
+        r->table_columns[i].rendered_width = widths[i];
+
+    check_bl(r);
+    draw_table_border(r, widths, n_cols, BDR_TL, BDR_TM, BDR_TR);
+    if(r->table_header_cols > 0 && r->table_cells != NULL)
+        header_cells = r->table_cells + r->table_header_start;
+    hlines = draw_table_row(r, widths, n_cols,
+                            header_cells, r->table_header_cols);
+    draw_table_border(r, widths, n_cols, BDR_ML, BDR_MM, BDR_MR);
+    r->table_lines = 2 + hlines;
+
+    for(i = 0; i < r->table_n_rows; i++) {
+        const struct TableRow* row = &r->table_rows[i];
+        const struct TableCell* cells = NULL;
+        if(r->table_cells != NULL)
+            cells = r->table_cells + row->first_cell;
+        r->table_lines += draw_table_row(r, widths, n_cols, cells,
+                                         row->n_cells);
+    }
+    draw_table_border(r, widths, n_cols, BDR_BL, BDR_BM, BDR_BR);
+    free(widths);
+}
+
+static void
 table_leave_table(MD_ANSI_RENDERER* r)
 {
     int n_cols = r->table_col_count;
-    if(n_cols > 0  &&  r->table_header_rendered) {
+    if(r->plain_mode) {
+        render_complete_table(r);
+    } else if(n_cols > 0  &&  r->table_header_rendered) {
         int* widths = (int*) malloc((size_t)n_cols * sizeof(int));
         int i;
         if(widths == NULL) {
@@ -2517,13 +2900,12 @@ md_ansi_leave_block(MD_BLOCKTYPE type, void* detail, void* userdata)
             break;
 
         case MD_BLOCK_REFERENCE_SECTION:
-            if(r->ref_line_len > 0) {
-                reference_line_emit(r, r->ref_line_buf, r->ref_line_len);
-                r->ref_line_len = 0;
-            }
-            r->in_reference_section = 0;
             write_str(r, "\n");
             signal_bl(r);
+            break;
+
+        case MD_BLOCK_REFERENCE_DEF:
+            write_str(r, "\n");
             break;
 
         case MD_BLOCK_FOOTNOTE_DEF:
@@ -2622,20 +3004,26 @@ md_ansi_enter_span(MD_SPANTYPE type, void* detail, void* userdata)
             break;
 
         case MD_SPAN_A:
+            r->link_href_len = 0;
+            r->link_osc8_active = 0;
+            r->link_contains_image = 0;
             if(detail != NULL) {
                 MD_SPAN_A_DETAIL* ad = (MD_SPAN_A_DETAIL*)detail;
                 r->link_href_len = copy_attribute_decoded(&ad->href,
                                         r->link_href, (int)sizeof(r->link_href));
             }
-            if(r->osc8_enabled && r->link_href_len > 0)
+            if(r->osc8_enabled && !r->plain_mode && r->link_href_len > 0) {
                 write_osc8_open(r, r->link_href, r->link_href_len);
+                r->link_osc8_active = 1;
+            }
             open_isolated_style(r, &r->theme->link_text);
             break;
 
         case MD_SPAN_IMG:
-            write_str(r, "[IMG: ");
             r->img_src_len = 0;
             r->img_title_len = 0;
+            r->img_osc8_active = 0;
+            r->img_alt_seen = 0;
             if(detail != NULL) {
                 MD_SPAN_IMG_DETAIL* id = (MD_SPAN_IMG_DETAIL*)detail;
                 r->img_src_len = copy_attribute_decoded(&id->src,
@@ -2643,9 +3031,23 @@ md_ansi_enter_span(MD_SPANTYPE type, void* detail, void* userdata)
                 r->img_title_len = copy_attribute_decoded(&id->title,
                                     r->img_title, (int)sizeof(r->img_title));
             }
-            if(r->osc8_enabled && r->img_src_len > 0)
+            if(link_style_is_active(r)) {
+                r->link_contains_image = 1;
+                if(r->link_osc8_active) {
+                    write_osc8_close(r);
+                    r->link_osc8_active = 0;
+                }
+            }
+            write_style_prefix(r, &r->theme->image_mark);
+            write_output(r, "IMG:", 4);
+            write_style_suffix(r, &r->theme->image_mark);
+            reapply_all(r);
+            write_output(r, " ", 1);
+            open_isolated_style(r, &r->theme->link_text);
+            if(r->osc8_enabled && !r->plain_mode && r->img_src_len > 0) {
                 write_osc8_open(r, r->img_src, r->img_src_len);
-            open_isolated_style(r, &r->theme->image_label);
+                r->img_osc8_active = 1;
+            }
             break;
 
         case MD_SPAN_LATEXMATH:
@@ -2669,10 +3071,10 @@ md_ansi_enter_span(MD_SPANTYPE type, void* detail, void* userdata)
             break;
 
         case MD_SPAN_SPOILER:
-            write_str(r, r->theme->spoiler_label.prefix);
+            write_style_prefix(r, &r->theme->spoiler_label);
             write_str(r, "[spoiler] ");
-            write_str(r, r->theme->spoiler_label.suffix);
-            write_str(r, r->theme->spoiler.prefix);
+            write_style_suffix(r, &r->theme->spoiler_label);
+            write_style_prefix(r, &r->theme->spoiler);
             r->spoiler_active = 1;
             break;
 
@@ -2695,14 +3097,21 @@ md_ansi_enter_span(MD_SPANTYPE type, void* detail, void* userdata)
             break;
 
         case MD_SPAN_REFERENCE_IMAGE:
-            write_str(r, "[IMG: ");
             r->ref_label_len = 0;
+            r->img_alt_seen = 0;
             if(detail != NULL) {
                 MD_SPAN_REFERENCE_LINK_DETAIL* det = (MD_SPAN_REFERENCE_LINK_DETAIL*)detail;
                 r->ref_label_len = copy_attribute_decoded(&det->label,
                                     r->ref_label, (int)sizeof(r->ref_label));
             }
-            open_isolated_style(r, &r->theme->image_label);
+            if(link_style_is_active(r))
+                r->link_contains_image = 1;
+            write_style_prefix(r, &r->theme->image_mark);
+            write_output(r, "IMG:", 4);
+            write_style_suffix(r, &r->theme->image_mark);
+            reapply_all(r);
+            write_output(r, " ", 1);
+            open_isolated_style(r, &r->theme->link_text);
             break;
 
         default:
@@ -2745,40 +3154,44 @@ md_ansi_leave_span(MD_SPANTYPE type, void* detail, void* userdata)
             break;
 
         case MD_SPAN_A:
-            write_str(r, r->theme->link_text.suffix);
+            write_style_suffix(r, &r->theme->link_text);
             if(r->isolated_style_depth > 0)
                 r->isolated_style_depth--;
-            if(r->osc8_enabled) {
-                if(r->link_href_len > 0)
+            if(r->osc8_enabled && !r->plain_mode) {
+                if(r->link_contains_image) {
+                    if(r->link_href_len > 0) {
+                        write_output(r, " ", 1);
+                        emit_osc8_link_text(r, r->link_href, r->link_href_len);
+                    }
+                } else if(r->link_osc8_active && r->link_href_len > 0) {
                     write_osc8_close(r);
+                }
             } else {
                 emit_link_url_paren(r, r->link_href, r->link_href_len);
             }
             r->link_href_len = 0;
+            r->link_osc8_active = 0;
+            r->link_contains_image = 0;
             reapply_all(r);
             break;
 
         case MD_SPAN_IMG:
-            close_isolated_style(r, &r->theme->image_label);
-            if(r->osc8_enabled) {
-                if(r->img_src_len > 0)
+            if(r->osc8_enabled && !r->plain_mode && r->img_osc8_active) {
+                if(r->img_alt_seen && r->img_src_len > 0)
                     write_osc8_close(r);
-                write_output(r, "]", 1);
-            } else {
-                write_str(r, " (");
-                write_str(r, r->theme->link_url.prefix);
-                if(r->img_src_len > 0)
-                    write_output(r, r->img_src, r->img_src_len);
-                write_str(r, r->theme->link_url.suffix);
-                if(r->img_title_len > 0) {
-                    write_output(r, " \"", 2);
-                    write_output(r, r->img_title, r->img_title_len);
-                    write_output(r, "\"", 1);
+                else {
+                    if(r->img_src_len > 0)
+                        write_output(r, r->img_src, r->img_src_len);
+                    write_osc8_close(r);
                 }
-                write_output(r, ")]", 2);
+                r->img_osc8_active = 0;
             }
+            close_isolated_style(r, &r->theme->link_text);
+            if(!r->osc8_enabled || r->plain_mode)
+                emit_image_url_paren(r);
             r->img_src_len = 0;
             r->img_title_len = 0;
+            r->img_alt_seen = 0;
             break;
 
         case MD_SPAN_LATEXMATH:
@@ -2795,7 +3208,7 @@ md_ansi_leave_span(MD_SPANTYPE type, void* detail, void* userdata)
             break;
 
         case MD_SPAN_SPOILER:
-            write_str(r, r->theme->spoiler.suffix);
+            write_style_suffix(r, &r->theme->spoiler);
             r->spoiler_active = 0;
             reapply_all(r);
             break;
@@ -2811,28 +3224,19 @@ md_ansi_leave_span(MD_SPANTYPE type, void* detail, void* userdata)
         case MD_SPAN_REFERENCE_LINK:
             close_isolated_style(r, &r->theme->link_text);
             write_output(r, " ", 1);
-            write_str(r, r->theme->link_url.prefix);
-            write_output(r, "ref:", 4);
-            write_output(r, "[", 1);
-            if(r->ref_label_len > 0)
-                write_output(r, r->ref_label, r->ref_label_len);
-            write_output(r, "]", 1);
-            write_str(r, r->theme->link_url.suffix);
+            write_reference_hint(r, r->ref_label, r->ref_label_len);
             r->ref_label_len = 0;
             break;
 
         case MD_SPAN_REFERENCE_IMAGE:
-            close_isolated_style(r, &r->theme->image_label);
+            close_isolated_style(r, &r->theme->link_text);
             if(r->ref_label_len > 0) {
-                write_str(r, r->theme->link_url.prefix);
-                write_output(r, " (ref:[", 7);
-                write_output(r, r->ref_label, r->ref_label_len);
-                write_output(r, "])]", 3);
-                write_str(r, r->theme->link_url.suffix);
-            } else {
-                write_output(r, ")]", 2);
+                write_output(r, " (", 2);
+                write_reference_hint(r, r->ref_label, r->ref_label_len);
+                write_output(r, ")", 1);
             }
             r->ref_label_len = 0;
+            r->img_alt_seen = 0;
             break;
 
         default:
@@ -2859,13 +3263,13 @@ handle_html_tag(MD_ANSI_RENDERER* r, const HTML_TAG_INFO* tag)
         case HTML_TAG_IMG:
             if(r->blockquote_needs_prefix)
                 emit_bq_prefix(r);
-            if(r->osc8_enabled && tag->src_len > 0)
+            if(r->osc8_enabled && !r->plain_mode && tag->src_len > 0)
                 write_osc8_open(r, tag->src, tag->src_len);
-            write_str(r, r->theme->image_label.prefix);
+            write_style_prefix(r, &r->theme->image_mark);
             if(tag->alt_len > 0)
                 write_output(r, tag->alt, tag->alt_len);
-            write_str(r, r->theme->image_label.suffix);
-            if(r->osc8_enabled) {
+            write_style_suffix(r, &r->theme->image_mark);
+            if(r->osc8_enabled && !r->plain_mode) {
                 if(tag->src_len > 0)
                     write_osc8_close(r);
             } else if(tag->src_len > 0) {
@@ -2878,14 +3282,14 @@ handle_html_tag(MD_ANSI_RENDERER* r, const HTML_TAG_INFO* tag)
         case HTML_TAG_A:
             if(tag->is_closer) {
                 close_isolated_style(r, &r->theme->link_text);
-                if(r->osc8_enabled) {
+                if(r->osc8_enabled && !r->plain_mode) {
                     if(r->html_link_href_len > 0)
                         write_osc8_close(r);
                 } else if(r->html_link_href_len > 0) {
                     write_str(r, " (");
-                    write_str(r, r->theme->link_url.prefix);
+                    write_style_prefix(r, &r->theme->link_url);
                     write_output(r, r->html_link_href, r->html_link_href_len);
-                    write_str(r, r->theme->link_url.suffix);
+                    write_style_suffix(r, &r->theme->link_url);
                     write_str(r, ")");
                 }
                 r->html_link_href_len = 0;
@@ -2895,7 +3299,8 @@ handle_html_tag(MD_ANSI_RENDERER* r, const HTML_TAG_INFO* tag)
                                          (int)sizeof(r->html_link_href));
                 if(r->blockquote_needs_prefix)
                     emit_bq_prefix(r);
-                if(r->osc8_enabled && r->html_link_href_len > 0)
+                if(r->osc8_enabled && !r->plain_mode
+                        && r->html_link_href_len > 0)
                     write_osc8_open(r, r->html_link_href, r->html_link_href_len);
                 open_isolated_style(r, &r->theme->link_text);
             }
@@ -2986,9 +3391,9 @@ emit_bq_prefix(MD_ANSI_RENDERER* r)
         int use_admo = (r->admonition_active && d == total - 1);
         if(use_admo && r->admonition_style != NULL
                 && r->admonition_style->prefix_len > 0)
-            write_str(r, r->admonition_style->prefix);
+            write_style_prefix(r, r->admonition_style);
         else
-            write_str(r, r->theme->blockquote.prefix);
+            write_style_prefix(r, &r->theme->blockquote);
         write_output(r, (const char*)vbar, 4);
         write_sgr_reset(r);
     }
@@ -3072,8 +3477,7 @@ emit_code_token(void* userdata, int style, const char* text, int len)
             st = NULL;
     }
 
-    if(st != NULL && st->prefix_len > 0)
-        write_str(r, st->prefix);
+    write_style_prefix(r, st);
 
     while(i < len) {
         int j = i;
@@ -3081,8 +3485,7 @@ emit_code_token(void* userdata, int style, const char* text, int len)
             j++;
         if(r->blockquote_needs_prefix) {
             emit_bq_prefix(r);
-            if(st != NULL && st->prefix_len > 0)
-                write_str(r, st->prefix);
+            write_style_prefix(r, st);
         }
         write_output(r, text + i, j - i);
         if(j < len) {
@@ -3111,85 +3514,6 @@ code_block_flush(MD_ANSI_RENDERER* r)
     r->hl_active = 0;
 }
 
-/* Emit one reference-definition line "[label]: dest ...".  With OSC 8
- * enabled the destination is wrapped in a clickable hyperlink; the block
- * style (link_url) is already active around the whole line. */
-static void
-reference_line_emit(MD_ANSI_RENDERER* r, const char* line, int len)
-{
-    int i = 0;
-    int dest_beg = -1;
-    int dest_end = -1;
-
-    if(len > 0 && line[0] == '[') {
-        for(i = 1; i < len; i++) {
-            if(line[i] == ']')
-                break;
-        }
-        if(i < len && line[i] == ']') {
-            i++;
-            if(i < len && line[i] == ':') {
-                i++;
-                while(i < len && (line[i] == ' ' || line[i] == '\t'))
-                    i++;
-                dest_beg = i;
-                while(i < len && line[i] != ' ' && line[i] != '\t')
-                    i++;
-                dest_end = i;
-            }
-        }
-    }
-
-    if(dest_beg < 0 || dest_end <= dest_beg) {
-        write_output(r, line, len);
-        return;
-    }
-
-    write_output(r, line, dest_beg);
-    if(r->osc8_enabled) {
-        write_osc8_open(r, line + dest_beg, dest_end - dest_beg);
-        write_output(r, line + dest_beg, dest_end - dest_beg);
-        write_osc8_close(r);
-    } else {
-        write_output(r, line + dest_beg, dest_end - dest_beg);
-    }
-    write_output(r, line + dest_end, len - dest_end);
-}
-
-/* Accumulate reference-section text into per-line buffers so each
- * definition line can be emitted with a clickable destination. */
-static void
-reference_section_text(MD_ANSI_RENDERER* r, const char* text, int size)
-{
-    int i = 0;
-
-    while(i < size) {
-        if(text[i] == '\n') {
-            reference_line_emit(r, r->ref_line_buf, r->ref_line_len);
-            write_output(r, "\n", 1);
-            r->ref_line_len = 0;
-            i++;
-            continue;
-        }
-        if(r->ref_line_len >= (int)sizeof(r->ref_line_buf) - 1) {
-            /* Unusually long line: emit raw so memory stays bounded. */
-            write_output(r, r->ref_line_buf, r->ref_line_len);
-            r->ref_line_len = 0;
-            while(i < size && text[i] != '\n') {
-                write_output(r, text + i, 1);
-                i++;
-            }
-            if(i < size) {
-                write_output(r, "\n", 1);
-                i++;
-            }
-            continue;
-        }
-        r->ref_line_buf[r->ref_line_len++] = text[i];
-        i++;
-    }
-}
-
 int
 md_ansi_text(MD_TEXTTYPE type, const MD_CHAR* text, MD_SIZE size, void* userdata)
 {
@@ -3205,6 +3529,9 @@ md_ansi_text(MD_TEXTTYPE type, const MD_CHAR* text, MD_SIZE size, void* userdata
      * actually starts, instead of only in enter_block(). A no-op whenever
      * enter_block() already ran (it clears the flag). */
     check_bl(r);
+
+    if(r->img_osc8_active && size > 0)
+        r->img_alt_seen = 1;
 
     switch(type) {
         case MD_TEXT_BR:
@@ -3255,10 +3582,6 @@ md_ansi_text(MD_TEXTTYPE type, const MD_CHAR* text, MD_SIZE size, void* userdata
 
         html_verbatim:
         default:
-            if(r->in_reference_section) {
-                reference_section_text(r, (const char*) text, (int) size);
-                break;
-            }
             write_text_with_bq(r, text, size);
             break;
     }
@@ -3281,7 +3604,7 @@ draw_table_border(MD_ANSI_RENDERER* r, const int* widths, int n_cols,
 {
     int i;
 
-    write_str(r, r->theme->table_border.prefix);
+    write_style_prefix(r, &r->theme->table_border);
     write_str(r, left);
     for(i = 0; i < n_cols; i++) {
         int w;
@@ -3291,7 +3614,7 @@ draw_table_border(MD_ANSI_RENDERER* r, const int* widths, int n_cols,
             write_str(r, join);
     }
     write_str(r, right);
-    write_str(r, r->theme->table_border.suffix);
+    write_style_suffix(r, &r->theme->table_border);
     write_str(r, "\n");
 }
 
@@ -3338,7 +3661,7 @@ draw_table_row(MD_ANSI_RENDERER* r, const int* widths, int n_cols,
         }
         cell_slices[col] = NULL;
         n_slices[col] = wrap_content(cell_text, cell_len, content_w,
-                                      &cell_slices[col]);
+                                      r->plain_mode, &cell_slices[col]);
         if(n_slices[col] <= 0) {
             r->failed = 1;
             goto cleanup;
@@ -3349,9 +3672,9 @@ draw_table_row(MD_ANSI_RENDERER* r, const int* widths, int n_cols,
 
     /* Draw each line. */
     for(line = 0; line < max_lines; line++) {
-        write_str(r, r->theme->table_border.prefix);
+        write_style_prefix(r, &r->theme->table_border);
         write_str(r, BDR_V);
-        write_str(r, r->theme->table_border.suffix);
+        write_style_suffix(r, &r->theme->table_border);
 
         for(col = 0; col < n_cols; col++) {
             int content_w = widths[col] - 2;
@@ -3389,15 +3712,15 @@ draw_table_row(MD_ANSI_RENDERER* r, const int* widths, int n_cols,
             }
 
             if(col < n_cols - 1) {
-                write_str(r, r->theme->table_border.prefix);
+                write_style_prefix(r, &r->theme->table_border);
                 write_str(r, BDR_V);
-                write_str(r, r->theme->table_border.suffix);
+                write_style_suffix(r, &r->theme->table_border);
             }
         }
 
-        write_str(r, r->theme->table_border.prefix);
+        write_style_prefix(r, &r->theme->table_border);
         write_str(r, BDR_V);
-        write_str(r, r->theme->table_border.suffix);
+        write_style_suffix(r, &r->theme->table_border);
         write_str(r, "\n");
     }
 
@@ -3576,38 +3899,4 @@ redraw_table(MD_ANSI_RENDERER* r)
                                          row->n_cells);
     }
     free(widths);
-}
-
-
-/********************************
- ***  Batch render API        ***
- ********************************/
-
-int
-md_ansi(const MD_CHAR* text, MD_SIZE size,
-        const MD_ANSI_THEME* theme,
-        void (*output)(const char* str, int size, void* userdata),
-        void* userdata)
-{
-    MD_ANSI_RENDERER* renderer;
-    MD_PARSER parser;
-    int ret;
-
-    renderer = md_ansi_renderer_create(theme, output, userdata);
-    if(renderer == NULL)
-        return -1;
-
-    memset(&parser, 0, sizeof(MD_PARSER));
-    parser.abi_version = 0;
-    parser.flags = 0;
-    parser.enter_block = md_ansi_enter_block;
-    parser.leave_block = md_ansi_leave_block;
-    parser.enter_span = md_ansi_enter_span;
-    parser.leave_span = md_ansi_leave_span;
-    parser.text = md_ansi_text;
-
-    ret = md_parse(text, size, &parser, (void*) renderer);
-
-    md_ansi_renderer_destroy(renderer);
-    return ret;
 }

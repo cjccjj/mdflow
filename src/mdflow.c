@@ -39,16 +39,36 @@ struct mdflow_tag {
 
 mdflow_t*
 mdflow_open(int term_width,
+            const mdflow_config_t* config,
             void (*output)(const char* str, int size, void* userdata),
             void* userdata)
 {
+    mdflow_config_t effective;
+    const MD_ANSI_THEME* theme;
     mdflow_t* mf;
+
+    effective.theme = MDFLOW_THEME_DEFAULT;
+    effective.plain = 0;
+    effective.osc8 = 1;
+    if(config != NULL)
+        effective = *config;
+
+    switch(effective.theme) {
+        case MDFLOW_THEME_DEFAULT:
+            theme = md_ansi_default_theme();
+            break;
+        case MDFLOW_THEME_TERM_256:
+            theme = md_ansi_term_256_theme();
+            break;
+        default:
+            return NULL;
+    }
 
     mf = (mdflow_t*) calloc(1, sizeof(mdflow_t));
     if(mf == NULL)
         return NULL;
 
-    mf->renderer = md_ansi_renderer_create(md_ansi_default_theme(),
+    mf->renderer = md_ansi_renderer_create(theme,
                                             output, userdata);
     if(mf->renderer == NULL) {
         free(mf);
@@ -57,6 +77,8 @@ mdflow_open(int term_width,
 
     if(term_width > 0)
         md_ansi_set_term_width(mf->renderer, term_width);
+    md_ansi_renderer_set_plain_mode(mf->renderer, effective.plain);
+    md_ansi_renderer_set_osc8(mf->renderer, effective.osc8);
 
     memset(&mf->parser, 0, sizeof(MD_PARSER));
     mf->parser.abi_version = 0;
@@ -86,20 +108,12 @@ mdflow_open(int term_width,
 int
 mdflow_write(mdflow_t* mf, const char* data, int len)
 {
-    if(mf == NULL || len < 0 || (len > 0 && data == NULL))
+    if(mf == NULL)
+        return -1;
+    if(len < 0 || (len > 0 && data == NULL))
         return -1;
     return md_stream_feed(mf->stream_ctx,
                           (const MD_CHAR*) data, (MD_SIZE) len);
-}
-
-
-int
-mdflow_set_osc8(mdflow_t* mf, int enable)
-{
-    if(mf == NULL)
-        return -1;
-    md_ansi_renderer_set_osc8(mf->renderer, enable);
-    return 0;
 }
 
 

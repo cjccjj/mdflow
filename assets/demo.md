@@ -23,7 +23,7 @@ One style at a time, no hurry:
 
 One quiet extra:
 
-- entities: &copy;&nbsp;&amp;&nbsp;&hearts; just work
+- entities: &copy; &trade; &pound; &sum; &lArr; just work
 
 Punctuation is plain text — commas, dashes, and semicolons
 are nothing special. Two trailing spaces make a hard break  
@@ -39,29 +39,30 @@ Sub-headings get a style of their own, easy on the eyes.
 
 Even deeper — the ladder stays readable all the way down.
 
-## Lists
-
-Styles live inside items, not just around them:
-
-1. **install** the deps, then *verify* the version
-2. ==highlight== the key steps: `make check`
-3. math stays tidy: E = mc², H₂O — small and styled
-4. read the [docs](https://example.com) for details
-   - nested bullets carry _italics_ and ~~strikethrough~~
-   - 日本語や中文もリストに混ざります 🎌 ただの文字列
-5. ~~drop~~ the old version, ==ship== the new one
-
-## Quotes
-
-> **Bold** opens, *italic* sets mood, `code` quotes verbatim.
-> _Italic_ labels words, ~~strike~~ marks the edits.
-
-> ==Highlight== the takeaway, link the
-> [source](https://example.com) — math fits: E = mc², H₂O.
-
-> They nest, too:
->> 内側は静かに、**でも決して消えない** — quiet, never lost.
-引用に日本語・中文・絵文字もOK：📖 今日の一言。
+## Lists  
+  
+Styles live inside items, not just around them:  
+  
+1. **install** the deps, then *verify* the version  
+2. ==highlight== the key steps: `make check`  
+3. math stays tidy: E = mc², H₂O — small and styled  
+4. read the [docs](https://example.com) for details  
+   - nested bullets carry _italics_ and ~~strikethrough~~  
+   - 中文也能自然地融入列表，字里行间别有韵味 🏮  
+5. ~~drop~~ the old version, ==ship== the new one  
+  
+## Quotes  
+  
+> **Bold** opens, *italic* sets mood, `code` quotes verbatim.  
+> _Italic_ labels words, ~~strike~~ marks the edits.  
+  
+> ==Highlight== the takeaway, link the  
+> [source](https://example.com) — math fits: E = mc², H₂O.  
+  
+> They nest, too:  
+>> 行到水穷处，**坐看云起时** — I follow the stream until it fades, 
+then sit and watch the clouds rise.
+引用中使用中文和表情符号也没问题：📖 今日一句。
 
 ## Code
 
@@ -99,9 +100,9 @@ A quick census of the solar system, aligned per column:
 | Mars | 6,779 km | red |
 | Jupiter | 142,984 km | **biggest** planet |
 | Saturn | 120,536 km | rings of `ice` and rock — wider than the planet |
-| Uranus | 51,118 km | rolls _sideways_ with a 98° tilt and long seasons |
+| Uranus | 51,118 km | rolls sideways with a dramatic 98° tilt, creating extreme seasonal shifts that can last for decades |
 | Neptune | 49,528 km | windiest — 2,100 km/h gusts, [record](https://example.com) |
-| Pluto | 2,377 km | still a planet in our ==hearts== — 冥王星も好き ❤️ |
+| Pluto | 2,377 km | still a planet in our ==hearts== — 冥王星も好き 🪐 |
 
 Wide cells wrap at the column edge, keeping their style.
 
@@ -117,9 +118,12 @@ Terminals speak many scripts, all plain Unicode:
 ## Checklist
 
 - [x] build the library
-- [x] write the tests
+- [x] watch [Youtube][a] or [bili][b]
 - [ ] write the demo[^1]
 - [ ] cut tomorrow's release
+
+[a]: https://www.youtube.com
+[b]: https://www.bilibili.com
 
 > [!WARNING]
 > Verify checksums, 

@@ -10,10 +10,12 @@ Tests form a dependency chain. Run in this order to catch failures early:
 3. run-parser-diff.py        [PARSER + REGRESSION] streaming vs batch callbacks
 4. run-stream-pipeline.py    [PARSER] low-level streaming API correctness
 5. run-stream-spec.py        [PARSER + REGRESSION] streaming feature behavior
-6. run-ansi-tests.py         [RENDER SMOKE] CLI/parser/renderer no-crash checks
-7. run-render-tests.py       [RENDER GOLDEN] exact and stripped ANSI output
-8. run-eof-regress.py        [REGRESSION] CLI EOF/flush behavior
-9. run-typewriter-tests.py   [REGRESSION] typewriter unit + CLI behavior
+6. run-ansi-tests.py         [RENDER SMOKE] plain CLI/parser/renderer no-crash checks
+7. run-render-tests.py       [RENDER GOLDEN] exact plain visible output
+8. run-eof-regress.py        [REGRESSION] plain CLI EOF/flush behavior
+9. run-typewriter-tests.py   [REGRESSION] typewriter unit + plain CLI behavior
+10. run-ansi-styled-tests.py [RENDER ANSI] focused DEFAULT control behavior
+11. run-config-tests.py      [CONFIG/PLAIN] config API and plain rendering
 ```
 
 The labels identify the primary responsibility of each step. “Regression” means
@@ -21,7 +23,7 @@ a focused test that preserves a previously reviewed behavior; it can belong to
 the parser, renderer, or CLI layer.
 
 Step 1 is the prerequisite. If it fails, steps 2–5 are invalid (the batch oracle
-has diverged from MD4C). Steps 1–5 are parser-focused tests. Steps 6–9 exercise
+has diverged from MD4C). Steps 1–5 are parser-focused tests. Steps 6–11 exercise
 the CLI, renderer, and end-to-end behavior built on top of the parser.
 
 ## What each test validates
@@ -167,21 +169,19 @@ emits only referenced definitions in reference order. This is pinned by
 python3 test/run-ansi-tests.py -p build/mdflow/mdflow
 ```
 
-Runs `mdflow` on all spec examples (930+ inputs). Verifies:
-- Exit code 0 (no crashes)
-- Non-empty output for non-empty input
+Runs `mdflow --plain --typewriter-off` on all spec, coverage, and regression
+examples. It verifies exit code 0 for the full renderer input set and does not
+require visible output for inputs whose rendered content is intentionally
+empty.
 
-Does not verify output correctness — that is covered by parser-diff (step 3,
-parser callbacks) and the render goldens (step 7, actual ANSI output).
+Focused checks cover reference definitions and visible reference output,
+blockquote marker placement and repeated markers, code-block labels and
+content preservation, table safety, preferred wrapping, Unicode layout, and
+terminal-width bounds. It does not assert SGR values or identify syntax
+tokens through color.
 
-The ANSI smoke suite also includes highlighter regression checks: keyword
-SGRs, whole-word matching (non-keywords stay plain), string/comment SGRs,
-cross-line strings and comments, division-vs-regex, and content
-preservation (`strip_sgr(out) == code text`).
-
-It also checks blockquote styling/bar placement, table safety with many or
-empty cells, preferred wrapping and style continuation, and terminal-width
-layout bounds.
+The suite is a renderer smoke/regression check, not a parser callback oracle;
+parser correctness is covered by steps 1–5 and exact visible output by step 7.
 
 ### Step 7: run-render-tests.py
 
@@ -189,31 +189,16 @@ layout bounds.
 python3 test/run-render-tests.py -p build/mdflow/mdflow
 ```
 
-Golden-output tests for the renderer (see `test/render-golden.txt`):
+Golden-output tests for the plain renderer (see `test/render-golden.txt`).
+The runner invokes `mdflow --plain --typewriter-off` and compares the visible
+output exactly. The goldens cover Markdown structure, links, images,
+references, admonitions, syntax-highlighted code content, tables and final
+layout, wrapping, Unicode, HTML, lists, and historical regressions.
 
-The renderer goldens focus on features with renderer-side logic, such as
-tables, HTML, syntax highlighting, terminal widths, wrapping, and redraw
-state. Simple callback-to-style mappings are also covered, but are lighter
-snapshot checks rather than independent semantic oracles. The golden output
-is an internal contract for the default theme, not a third-party oracle.
-
-- **Exact mode** — expected output contains `␛` (U+241B, standing for the
-  ESC byte): the output must match byte-for-byte, SGR codes included.
-  Freezes the default theme's styling contract.
-- **Stripped mode** — no `␛` in expected: SGR codes are stripped and the
-  visible text must match.
-
-Covers tables (borders, alignment, CJK/emoji widths, cursor-up redraw),
-emphasis, code blocks/highlighting, links, entities (incl. malformed
-numeric refs), HTML blocks (comments, CDATA, PIs, declarations, inline
-tags), admonitions, blockquotes, lists (incl. deep nesting), footnotes,
-reference links, task lists, and the regression cases from past bugs.
-Expected outputs are a contract with the default theme: theme
-changes must update the goldens deliberately.
-
-The CLI epilogue (trailing newline + SGR reset appended by
-`mdflow/mdflow.c`) is stripped by the runner and must not appear in the
-golden file.
+The golden file contains no SGR snapshots or escape placeholders. Styling,
+OSC 8, and incremental table redraw controls are covered by step 10. The
+CLI's trailing epilogue newline is stripped by the runner and must not appear
+in the golden file.
 
 ### Step 8: run-eof-regress.py
 
@@ -221,11 +206,12 @@ golden file.
 python3 test/run-eof-regress.py -p build/mdflow/mdflow
 ```
 
-Feeds exact bytes without a trailing newline to the CLI and compares the
-visible text: a reference use after a consumed definition, blockquote text
-after a definition, and the last list item after a definition. Guards the
-flush path where a consumed streamed paragraph used to leave stale pending
-lines behind, dropping the trailing line's content.
+Feeds exact bytes without a trailing newline to the CLI with
+`--plain --typewriter-off` and compares the visible text: a reference use
+after a consumed definition, blockquote text after a definition, and the last
+list item after a definition. Guards the flush path where a consumed streamed
+paragraph used to leave stale pending lines behind, dropping the trailing
+line's content.
 
 ### Step 9: run-typewriter-tests.py
 
@@ -255,12 +241,44 @@ recording writer, then exercises the built CLI end to end:
   grow the queue (1000+ blank lines stay a single run)
 - pacing is always adaptive with `input_meta=on`; passthrough is locked for
   fast measured rates, file redirects, and EOF before measurement
+- plain CLI output produces the same bytes through the typewriter and
+  non-typewriter paths
 - clustered reads (a big read right after a small one, caused by pacer
   backpressure) do not inflate the measured rate
 - `test/typewriter-stress.md` (mixed Markdown, blank lines, and a long
   single line) matches the plain path
 
 Requires: `gcc` (compiles `typewriter-test.c` internally).
+
+### Step 10: run-ansi-styled-tests.py
+
+```
+python3 test/run-ansi-styled-tests.py -p build/mdflow/mdflow
+```
+
+The focused styled suite uses only the DEFAULT theme, selected by omitting a
+theme option. It covers the ANSI behavior that `--plain` intentionally
+disables: incremental table redraw,
+cursor-up and erase controls, and final visible table correctness. It also
+checks OSC 8 open/close sequences, their destination, and the visible link
+label with the URL hidden from visible output. It ignores SGR color values.
+
+### Step 11: run-config-tests.py
+
+```
+python3 test/run-config-tests.py
+```
+
+Compiles a public-API driver against `libmdflow`, including only `mdflow.h`,
+and a separate low-level renderer driver including `md4cs-ansi.h`, then
+exercises the CLI. It verifies plain output suppression, structural prefixes,
+visible link/image fallbacks, Unicode, wrapping, one-shot table rendering,
+configuration copying, invalid configuration rejection, and direct renderer
+plain mode. Non-empty renderer objects use DEFAULT; the suite does not compare
+theme output or assert a particular color. It also confirms that plain does
+not change typewriter selection, `--plain --osc8-off` remains accepted,
+conflicting rendering selectors are rejected, and literal input ESC bytes are
+preserved. No safety-filter option is expected.
 
 ## Spec data files (.txt)
 
@@ -286,7 +304,7 @@ Requires: `gcc` (compiles `typewriter-test.c` internally).
 | `typewriter-stress.md` | Typewriter mixed/blank-line/long-line fixture | typewriter |
 | `stream-footnote.txt` | Streaming footnote behavior | stream-spec |
 | `stream-ref.txt` | Streaming reference links | stream-spec |
-| `render-golden.txt` | ANSI renderer golden output | render-tests |
+| `render-golden.txt` | Plain renderer golden output | render-tests |
 | `parser-diff-expected.txt` | Reviewed streaming/batch divergence manifest | parser-diff |
 | `parser-diff-expected.json` | Exact reviewed parser callback snapshots | parser-diff |
 
@@ -319,5 +337,13 @@ run-ansi-tests.py
 │    mdflow     │ ← libmd4cs + md4cs-ansi
 └───────┬───────┘
         ↓
-  exit code 0, non-empty output for all 930+ examples
+  --plain: exit code 0 for all spec/coverage/regression examples
+
+run-ansi-styled-tests.py
+    ↓ runs DEFAULT
+┌───────────────┐
+│    mdflow     │ ← focused ANSI controls only
+└───────┬───────┘
+        ↓
+  table redraw and OSC 8 behavior
 ```

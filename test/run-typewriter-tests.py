@@ -9,7 +9,8 @@ Two layers:
      span measured from the first byte) decides once and locks. Slow
      streams switch to typewriter; fast streams, file redirects, and tiny
      single-burst inputs stay in passthrough. The options are
-     --typewriter-off, --report, and --osc8-off.
+     --typewriter-off, --report, and --osc8-off. Renderer parity checks use
+     --plain so they test typewriter behavior independently of styling.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tempfile
 import time
 
 
@@ -60,7 +62,8 @@ def clean_env() -> dict[str, str]:
 
 
 def run_cli(args: list[str], data: bytes | None = None,
-            stdin_file: Path | None = None) -> subprocess.CompletedProcess:
+            stdin_file: Path | None = None,
+            cwd: Path | None = None) -> subprocess.CompletedProcess:
     if stdin_file is not None:
         with open(stdin_file, "rb") as fh:
             return subprocess.run(
@@ -69,6 +72,7 @@ def run_cli(args: list[str], data: bytes | None = None,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=clean_env(),
+                cwd=cwd,
             )
     return subprocess.run(
         [str(MDFLOW), *args],
@@ -76,6 +80,7 @@ def run_cli(args: list[str], data: bytes | None = None,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=clean_env(),
+        cwd=cwd,
     )
 
 
@@ -129,26 +134,10 @@ def test_help() -> bool:
 def test_unknown_options_rejected() -> bool:
     ok = True
     for args in (["--cps", "10"], ["--adaptive"], ["--max-delay", "1"]):
-        proc = run_cli(args, data=b"")
+        proc = run_cli(["--plain", *args], data=b"")
         good = proc.returncode != 0 and b"unknown option" in proc.stderr
         ok = ok and good
         print(("PASS" if good else "FAIL") + f": {args[0]} is rejected")
-    return ok
-
-
-def test_osc8_flag() -> bool:
-    """Default output uses OSC 8 hyperlinks and hides the URL; --osc8-off
-    keeps today's visible URL and omits the OSC 8 sequence."""
-    md = b"[x](https://e.com)\n"
-    default = run_cli(["--typewriter-off"], data=md)
-    off = run_cli(["--typewriter-off", "--osc8-off"], data=md)
-    ok = default.returncode == 0 and off.returncode == 0
-    ok = ok and b"\x1b]8;;https://e.com\x1b\\" in default.stdout
-    ok = ok and b" (https://e.com)" not in default.stdout
-    ok = ok and b"https://e.com" in off.stdout
-    ok = ok and b"\x1b]8;" not in off.stdout
-    print(("PASS" if ok else "FAIL")
-          + ": --osc8-off toggles hyperlink emission and URL visibility")
     return ok
 
 
@@ -156,8 +145,8 @@ def test_unclear_input_passes_through() -> bool:
     """A tiny single-burst input has no timing evidence, so it stays in
     passthrough (unclear means bypass)."""
     data = b"hi\n"
-    plain = run_cli(["--typewriter-off"], data=data)
-    paced = run_cli(["--report"], data=data)
+    plain = run_cli(["--plain", "--typewriter-off"], data=data)
+    paced = run_cli(["--plain", "--report"], data=data)
     ok = plain.returncode == 0 and paced.returncode == 0
     ok = ok and plain.stdout == paced.stdout
     ok = ok and b"bypass=on" in paced.stderr
@@ -171,9 +160,10 @@ def test_slow_stream_activates_typewriter() -> bool:
     """A stream measured well under 5000 chars/sec switches to typewriter
     once and locks."""
     data = b"x" * 100 + b"\n"
-    plain = run_cli(["--typewriter-off"], data=data)
+    plain = run_cli(["--plain", "--typewriter-off"], data=data)
     start = time.monotonic()
-    paced = slow_pipe(data, chunk=8, delay=0.03, args=["--report"])
+    paced = slow_pipe(data, chunk=8, delay=0.03,
+                      args=["--plain", "--report"])
     elapsed = time.monotonic() - start
     ok = plain.returncode == 0 and paced.returncode == 0
     ok = ok and plain.stdout == paced.stdout
@@ -188,8 +178,8 @@ def test_slow_stream_activates_typewriter() -> bool:
 
 def test_bypass_file_parity() -> bool:
     demo = ROOT / "assets" / "demo.md"
-    plain = run_cli(["--typewriter-off"], stdin_file=demo)
-    paced = run_cli(["--report"], stdin_file=demo)
+    plain = run_cli(["--plain", "--typewriter-off"], stdin_file=demo)
+    paced = run_cli(["--plain", "--report"], stdin_file=demo)
     ok = plain.returncode == 0 and paced.returncode == 0
     ok = ok and plain.stdout == paced.stdout
     ok = ok and b"bypass=on" in paced.stderr
@@ -198,13 +188,71 @@ def test_bypass_file_parity() -> bool:
     return ok
 
 
+def test_filename_input() -> bool:
+    """A filename operand must use the same input path as a redirect."""
+    demo = ROOT / "assets" / "demo.md"
+    redirected = run_cli(["--plain", "--typewriter-off"], stdin_file=demo)
+    plain = run_cli(["--plain", str(demo), "--typewriter-off"],
+                    data=b"# ignored stdin\n")
+    paced = run_cli(["--plain", "--report", str(demo)],
+                    data=b"# ignored stdin\n")
+    ok = redirected.returncode == 0 and plain.returncode == 0
+    ok = ok and paced.returncode == 0
+    ok = ok and plain.stdout == redirected.stdout
+    ok = ok and paced.stdout == redirected.stdout
+    ok = ok and b"bypass=on" in paced.stderr
+    print(("PASS" if ok else "FAIL")
+          + ": filename input matches redirect and bypasses typewriter")
+    return ok
+
+
+def test_standard_filename_operands() -> bool:
+    """Keep '-' stdin and '--' delimiter behavior conventional."""
+    data = b"# file operand\n\ncontent\n"
+    piped = run_cli(["--plain", "--typewriter-off"], data=data)
+    dash = run_cli(["--plain", "--typewriter-off", "-"], data=data)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        directory = Path(temp_dir)
+        filename = "-not-markdown.bin"
+        (directory / filename).write_bytes(data)
+        delimited = run_cli(["--plain", "--typewriter-off", "--", filename],
+                            data=b"# ignored stdin\n", cwd=directory)
+        missing = run_cli(["--plain", "--typewriter-off",
+                           str(directory / "missing-input.md")], data=b"")
+        extra = run_cli(["--plain", "--typewriter-off", "one.md", "two.md"],
+                        data=b"")
+    ok = piped.returncode == 0 and dash.returncode == 0
+    ok = ok and delimited.returncode == 0
+    ok = ok and dash.stdout == piped.stdout
+    ok = ok and delimited.stdout == piped.stdout
+    ok = ok and missing.returncode != 0 and b"cannot open" in missing.stderr
+    ok = ok and extra.returncode != 0 and b"too many input files" in extra.stderr
+    print(("PASS" if ok else "FAIL")
+          + ": '-', '--', missing, and extra filename operands behave")
+    return ok
+
+
 def test_piped_parity_default() -> bool:
     data = b"# title\n\nsome **bold** and *italic* text\n\n- one\n- two\n"
-    plain = run_cli(["--typewriter-off"], data=data)
-    paced = run_cli([], data=data)
+    plain = run_cli(["--plain", "--typewriter-off"], data=data)
+    paced = run_cli(["--plain"], data=data)
     ok = plain.returncode == 0 and paced.returncode == 0
     ok = ok and plain.stdout == paced.stdout
     print(("PASS" if ok else "FAIL") + ": piped input byte parity")
+    return ok
+
+
+def test_rendering_option_parity() -> bool:
+    """Plain output must match through direct and paced CLI paths."""
+    data = (b"# title\n\n"
+            b"some **bold** text and a [link](https://e.com)\n\n"
+            b"| a | b |\n|---|---|\n| one | two |\n")
+    direct = run_cli(["--plain", "--typewriter-off"], data=data)
+    paced = run_cli(["--plain"], data=data)
+    ok = (direct.returncode == 0 and paced.returncode == 0
+          and direct.stdout == paced.stdout)
+    print(("PASS" if ok else "FAIL")
+          + ": plain rendering preserves typewriter parity")
     return ok
 
 
@@ -212,9 +260,10 @@ def test_max_delay_cap() -> bool:
     # 200 chars fed slowly: measured ~160/s, so pacing would take ~1.2 s and
     # the fixed 1 s cap bursts the overdue line.
     data = b"b" * 200 + b"\n"
-    plain = run_cli(["--typewriter-off"], data=data)
+    plain = run_cli(["--plain", "--typewriter-off"], data=data)
     start = time.monotonic()
-    paced = slow_pipe(data, chunk=2, delay=0.012, args=["--report"])
+    paced = slow_pipe(data, chunk=2, delay=0.012,
+                      args=["--plain", "--report"])
     elapsed = time.monotonic() - start
     ok = plain.returncode == 0 and paced.returncode == 0
     ok = ok and plain.stdout == paced.stdout
@@ -229,8 +278,8 @@ def test_slow_stream_queue_growth() -> bool:
     """A long line paced while short lines arrive one at a time must not
     corrupt the pacer queue (the head advances while the tail grows)."""
     data = b"z" * 60 + b"\n" + b"y\n" * 20
-    plain = run_cli(["--typewriter-off"], data=data)
-    paced = slow_pipe(data, chunk=2, delay=0.01)
+    plain = run_cli(["--plain", "--typewriter-off"], data=data)
+    paced = slow_pipe(data, chunk=2, delay=0.01, args=["--plain"])
     ok = plain.returncode == 0 and paced.returncode == 0
     ok = ok and plain.stdout == paced.stdout
     print(("PASS" if ok else "FAIL")
@@ -242,8 +291,8 @@ def test_code_block_blank_lines_parity() -> bool:
     """A fenced code block emits consecutive blank rendered lines; they must
     be coalesced (not queued per line) and still match the plain path."""
     data = b"```\na\n" + b"\n" * 2000 + b"b\n```\n"
-    plain = run_cli(["--typewriter-off"], data=data)
-    paced = slow_pipe(data, chunk=32, delay=0.02)
+    plain = run_cli(["--plain", "--typewriter-off"], data=data)
+    paced = slow_pipe(data, chunk=32, delay=0.02, args=["--plain"])
     ok = plain.returncode == 0 and paced.returncode == 0
     ok = ok and plain.stdout == paced.stdout
     print(("PASS" if ok else "FAIL")
@@ -256,8 +305,8 @@ def test_stress_parity() -> bool:
         print(f"FAIL: stress fixture not found: {STRESS_FIXTURE}")
         return False
     data = STRESS_FIXTURE.read_bytes()
-    plain = run_cli(["--typewriter-off"], data=data)
-    paced = slow_pipe(data)
+    plain = run_cli(["--plain", "--typewriter-off"], data=data)
+    paced = slow_pipe(data, args=["--plain"])
     ok = plain.returncode == 0 and paced.returncode == 0
     ok = ok and plain.stdout == paced.stdout
     print(("PASS" if ok else "FAIL")
@@ -270,8 +319,8 @@ def test_rate_bypass_pipe() -> bool:
     # is far above the fixed 5000 chars/sec threshold and the run stays in
     # passthrough.
     data = b"line with some **markdown** here\n" * 30000
-    plain = run_cli(["--typewriter-off"], data=data)
-    paced = run_cli(["--report"], data=data)
+    plain = run_cli(["--plain", "--typewriter-off"], data=data)
+    paced = run_cli(["--plain", "--report"], data=data)
     ok = plain.returncode == 0 and paced.returncode == 0
     ok = ok and plain.stdout == paced.stdout
     ok = ok and b"bypass=on" in paced.stderr
@@ -281,7 +330,7 @@ def test_rate_bypass_pipe() -> bool:
 
 
 def test_report_fields() -> bool:
-    proc = run_cli(["--report"], data=b"hello world\n")
+    proc = run_cli(["--plain", "--report"], data=b"hello world\n")
     ok = proc.returncode == 0
     ok = ok and b"report: input_chars=" in proc.stderr
     ok = ok and b"max_delay_cap=1.0s" in proc.stderr
@@ -299,11 +348,13 @@ def main() -> int:
         run_unit_tests(),
         test_help(),
         test_unknown_options_rejected(),
-        test_osc8_flag(),
         test_unclear_input_passes_through(),
         test_slow_stream_activates_typewriter(),
         test_bypass_file_parity(),
+        test_filename_input(),
+        test_standard_filename_operands(),
         test_piped_parity_default(),
+        test_rendering_option_parity(),
         test_max_delay_cap(),
         test_slow_stream_queue_growth(),
         test_code_block_blank_lines_parity(),

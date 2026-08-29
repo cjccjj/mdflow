@@ -3,7 +3,8 @@
 Tests for streaming-mode reference link/image behavior.
 All [text][ref], [text][], [text], ![alt][ref] syntax
 is emitted as REF_LINK/REF_IMAGE hints during feed.
-Definitions are emitted as a REFERENCE_SECTION at flush.
+Definitions are emitted as a REFERENCE_SECTION at flush, with one
+REFERENCE_DEF block carrying label, destination, and optional title details.
 
 The test binary is stream-event (no flag).
 
@@ -15,7 +16,7 @@ The test binary is stream-event (no flag).
 
 [img]: /url.png
 .
-15 events
+11 events
 +BLOCK   DOC
 +BLOCK   P
 >SPAN    REF_IMAGE  {label="img"}
@@ -23,12 +24,8 @@ TEXT  "alt"  (NORMAL)
 <SPAN    REF_IMAGE
 -BLOCK   P
 +BLOCK   REFERENCE_SECTION
-TEXT  "["  (NORMAL)
-TEXT  "img"  (NORMAL)
-TEXT  "]:"  (NORMAL)
-TEXT  " "  (NORMAL)
-TEXT  "/url.png"  (NORMAL)
-TEXT  "\n"  (NORMAL)
++BLOCK   REFERENCE_DEF  {label="img", dest="/url.png", title=""}
+-BLOCK   REFERENCE_DEF
 -BLOCK   REFERENCE_SECTION
 -BLOCK   DOC
 ````````````````````````````````
@@ -41,7 +38,7 @@ TEXT  "\n"  (NORMAL)
 
 [ref]: /url
 .
-15 events
+11 events
 +BLOCK   DOC
 +BLOCK   P
 >SPAN    REF_LINK  {label="ref"}
@@ -49,12 +46,50 @@ TEXT  "text"  (NORMAL)
 <SPAN    REF_LINK
 -BLOCK   P
 +BLOCK   REFERENCE_SECTION
-TEXT  "["  (NORMAL)
-TEXT  "ref"  (NORMAL)
-TEXT  "]:"  (NORMAL)
-TEXT  " "  (NORMAL)
-TEXT  "/url"  (NORMAL)
-TEXT  "\n"  (NORMAL)
++BLOCK   REFERENCE_DEF  {label="ref", dest="/url", title=""}
+-BLOCK   REFERENCE_DEF
+-BLOCK   REFERENCE_SECTION
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Definition fields are structured
+
+```````````````````````````````` example
+[uri]: https://example.com/docs "remote"
+[section]: #intro
+[file]: docs/readme.md
+.
+10 events
++BLOCK   DOC
++BLOCK   REFERENCE_SECTION
++BLOCK   REFERENCE_DEF  {label="uri", dest="https://example.com/docs", title="remote"}
+-BLOCK   REFERENCE_DEF
++BLOCK   REFERENCE_DEF  {label="section", dest="#intro", title=""}
+-BLOCK   REFERENCE_DEF
++BLOCK   REFERENCE_DEF  {label="file", dest="docs/readme.md", title=""}
+-BLOCK   REFERENCE_DEF
+-BLOCK   REFERENCE_SECTION
+-BLOCK   DOC
+````````````````````````````````
+
+
+## Multiline label and title details
+
+```````````````````````````````` example
+[
+multi
+label
+]: /docs/file.md '
+line one
+line two
+'
+.
+6 events
++BLOCK   DOC
++BLOCK   REFERENCE_SECTION
++BLOCK   REFERENCE_DEF  {label="multi label", dest="/docs/file.md", title="\nline one\nline two\n"}
+-BLOCK   REFERENCE_DEF
 -BLOCK   REFERENCE_SECTION
 -BLOCK   DOC
 ````````````````````````````````

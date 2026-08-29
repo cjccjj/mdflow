@@ -46,15 +46,14 @@ typedef struct MD_ANSI_STYLE_tag {
 /* Theme: styles for every Markdown element type. */
 typedef struct MD_ANSI_THEME_tag {
     MD_ANSI_STYLE h1, h2, h3, h4, h5, h6;
-    MD_ANSI_STYLE bold, italic, strikethrough;
-    MD_ANSI_STYLE inline_code, code_block, code_block_lang;
+    MD_ANSI_STYLE inline_code, code_block;
     MD_ANSI_STYLE hl_normal, hl_keyword, hl_punct, hl_string, hl_comment;
     MD_ANSI_STYLE hr;
     MD_ANSI_STYLE bullet_item, ordered_item;
     MD_ANSI_STYLE blockquote;
     MD_ANSI_STYLE table_border, table_header, table_cell;
     MD_ANSI_STYLE link_text, link_url;
-    MD_ANSI_STYLE image_label;
+    MD_ANSI_STYLE image_mark;
     MD_ANSI_STYLE text;
     MD_ANSI_STYLE footnote_ref;
     MD_ANSI_STYLE admonition;
@@ -64,37 +63,24 @@ typedef struct MD_ANSI_THEME_tag {
     MD_ANSI_STYLE admonition_warning;
     MD_ANSI_STYLE admonition_caution;
 
-    MD_ANSI_STYLE underline;
     MD_ANSI_STYLE highlight;
     MD_ANSI_STYLE spoiler_label;
     MD_ANSI_STYLE spoiler;
     MD_ANSI_STYLE superscript;
     MD_ANSI_STYLE subscript;
+    MD_ANSI_STYLE metadata;
 } MD_ANSI_THEME;
 
 
-/* Returns the built-in default theme (statically allocated). */
+/* Returns the built-in DEFAULT theme (statically allocated). */
 const MD_ANSI_THEME* md_ansi_default_theme(void);
 
-
-/* Batch render: convert Markdown to ANSI output.
- *
- * Parameters:
- *   text      — Markdown input (may contain null bytes)
- *   size      — input size
- *   theme     — ANSI theme to use (NULL = default)
- *   output    — callback invoked for each chunk of ANSI output
- *   userdata  — passed through to output callback
- *
- * Returns 0 on success, or non-zero if a callback returned non-zero.
- */
-int md_ansi(const MD_CHAR* text, MD_SIZE size,
-            const MD_ANSI_THEME* theme,
-            void (*output)(const char* str, int size, void* userdata),
-            void* userdata);
+/* Returns the built-in themes (statically allocated). */
+const MD_ANSI_THEME* md_ansi_term_256_theme(void);
+const MD_ANSI_THEME* md_ansi_plain_theme(void);
 
 
-/* Callback implementations for use with md_parse() or md_stream_*().
+/* Callback implementations for use with md_stream_*().
  *
  * Usage:
  *     MD_PARSER parser;
@@ -107,9 +93,6 @@ int md_ansi(const MD_CHAR* text, MD_SIZE size,
  *     parser.leave_span  = md_ansi_leave_span;
  *     parser.text        = md_ansi_text;
  *
- *     // batch:
- *     md_parse(text, size, &parser, &renderer);
- *     // or streaming:
  *     md_stream_init(&parser, &renderer, &stream_ctx);
  */
 
@@ -128,6 +111,13 @@ void md_ansi_renderer_destroy(MD_ANSI_RENDERER* renderer);
 
 /* Set the terminal width for table width limiting (0 = no limit). */
 void md_ansi_set_term_width(MD_ANSI_RENDERER* renderer, int term_width);
+
+/* Select a theme.  NULL selects the built-in DEFAULT theme. */
+void md_ansi_renderer_set_theme(MD_ANSI_RENDERER* renderer,
+                                 const MD_ANSI_THEME* theme);
+
+/* Enable or disable plain output behavior independently of the style set. */
+void md_ansi_renderer_set_plain_mode(MD_ANSI_RENDERER* renderer, int enable);
 
 /* Enable or disable OSC 8 hyperlink emission (enabled by default).
  * When enabled, link destinations are emitted as OSC 8 metadata around the

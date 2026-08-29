@@ -2033,7 +2033,7 @@ struct MD_REF_DEF_tag {
     OFF dest_beg;
     OFF dest_end;
 #ifdef MD4C_STREAMING
-    CHAR* dest;                 /* Heap-copied dest URL */
+    CHAR* dest;                 /* Heap-copied link destination */
     SZ dest_size;
 #endif
     unsigned char label_needs_free : 1;
@@ -8953,7 +8953,35 @@ abort:
     return ret;
 }
 
-/* Emit all link reference definitions as a raw text section (streaming mode only). */
+static int
+md_stream_process_ref_def(MD_CTX* ctx, MD_REF_DEF* def)
+{
+    MD_BLOCK_REFERENCE_DEF_DETAIL det;
+    MD_ATTRIBUTE_BUILD label_build = { 0 };
+    MD_ATTRIBUTE_BUILD dest_build = { 0 };
+    MD_ATTRIBUTE_BUILD title_build = { 0 };
+    int ret = 0;
+
+    memset(&det, 0, sizeof(MD_BLOCK_REFERENCE_DEF_DETAIL));
+    MD_CHECK(md_build_attribute(ctx, def->entry.label, def->entry.label_size,
+                                0, &det.label, &label_build));
+    MD_CHECK(md_build_attribute(ctx, def->dest, def->dest_size,
+                                0, &det.dest, &dest_build));
+    MD_CHECK(md_build_attribute(ctx, def->title, def->title_size,
+                                0, &det.title, &title_build));
+
+    MD_ENTER_BLOCK(MD_BLOCK_REFERENCE_DEF, &det);
+    MD_LEAVE_BLOCK(MD_BLOCK_REFERENCE_DEF, &det);
+
+abort:
+    md_free_attribute(ctx, &label_build);
+    md_free_attribute(ctx, &dest_build);
+    md_free_attribute(ctx, &title_build);
+    return ret;
+}
+
+/* Emit all link reference definitions as a structured section
+ * (streaming mode only). */
 static int
 md_stream_process_ref_defs(MD_CTX* ctx)
 {
@@ -8983,26 +9011,7 @@ md_stream_process_ref_defs(MD_CTX* ctx)
         if(is_dup)
             continue;
 
-        /* Emit: [label]: dest "title"\n */
-        MD_TEXT(MD_TEXT_NORMAL, _T("["), 1);
-        MD_TEXT(MD_TEXT_NORMAL, def->entry.label, def->entry.label_size);
-        MD_TEXT(MD_TEXT_NORMAL, _T("]:"), 2);
-        MD_TEXT(MD_TEXT_NORMAL, _T(" "), 1);
-
-        if(def->dest != NULL  &&  def->dest_size > 0) {
-            MD_TEXT(MD_TEXT_NORMAL, def->dest, def->dest_size);
-        } else {
-            /* Fallback: read from ctx->text offsets (batch path). */
-            MD_TEXT(MD_TEXT_NORMAL, STR(def->dest_beg), def->dest_end - def->dest_beg);
-        }
-
-        if(def->title_size > 0) {
-            MD_TEXT(MD_TEXT_NORMAL, _T(" \""), 2);
-            MD_TEXT(MD_TEXT_NORMAL, def->title, def->title_size);
-            MD_TEXT(MD_TEXT_NORMAL, _T("\""), 1);
-        }
-
-        MD_TEXT(MD_TEXT_NORMAL, _T("\n"), 1);
+        MD_CHECK(md_stream_process_ref_def(ctx, def));
     }
 
     MD_LEAVE_BLOCK(MD_BLOCK_REFERENCE_SECTION, NULL);

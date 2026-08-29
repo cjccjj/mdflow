@@ -15,11 +15,13 @@ from pathlib import Path
 
 
 TARGETS = (
-    ("1 MiB", 1024 * 1024),
-    ("10 MiB", 10 * 1024 * 1024),
-    ("100 MiB", 100 * 1024 * 1024),
+    ("1 MB", 1024 * 1024),
+    ("10 MB", 10 * 1024 * 1024),
+    ("100 MB", 100 * 1024 * 1024),
 )
 TOOLS = ("mdflow", "glow", "mdcat", "streamdown")
+SLOW_LARGE_WORKLOAD_TOOLS = ("glow", "streamdown")
+LARGE_WORKLOAD_BYTES = 100 * 1024 * 1024
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -79,10 +81,10 @@ def report_timeout(workload, tool, phase, number, count, seconds):
     )
 
 
-def report_skipped(workload, tool, phase, number, count):
+def report_skipped(workload, tool, phase, number, count, reason):
     print(
-        "benchmark: %s %s %s %d/%d skipped (earlier timeout)"
-        % (workload, tool, phase, number, count),
+        "benchmark: %s %s %s %d/%d skipped (%s)"
+        % (workload, tool, phase, number, count, reason),
         flush=True,
     )
 
@@ -175,14 +177,16 @@ def format_seconds(value):
     return "%.3f s" % value
 
 
-def format_mib(kib):
-    return "%.1f MiB" % (kib / 1024.0)
-
-
-def format_bytes(size):
+def format_size(size):
+    if size >= 1024 * 1024 * 1024:
+        return "%.1f GB" % (size / (1024.0 * 1024.0 * 1024.0))
     if size >= 1024 * 1024:
-        return "%.1f MiB" % (size / (1024.0 * 1024.0))
-    return "%.1f KiB" % (size / 1024.0)
+        return "%.1f MB" % (size / (1024.0 * 1024.0))
+    return "%.1f KB" % (size / 1024.0)
+
+
+def format_rss(kib):
+    return format_size(kib * 1024)
 
 
 def bold_minimum(value, values, formatter):
@@ -197,6 +201,8 @@ def metric_cell(measurements, key, formatter, available, timeout):
     if not completed:
         if any(item.get("status") == "timeout" for item in measurements):
             return "didn't finish in %ss" % timeout
+        if any(item.get("status") == "skipped" for item in measurements):
+            return "-"
         return "no result"
 
     value = statistics.median(completed)
@@ -248,7 +254,7 @@ def build_markdown(workloads, results, binaries, runs, warmups, timeout):
             for tool in TOOLS
         ]
         rss_cells = [
-            metric_cell(values[tool], "max_rss_kib", format_mib, list(rss.values()), timeout)
+            metric_cell(values[tool], "max_rss_kib", format_rss, list(rss.values()), timeout)
             for tool in TOOLS
         ]
         label = "**%s** (%d bytes)" % (name, size)
@@ -263,7 +269,7 @@ def build_markdown(workloads, results, binaries, runs, warmups, timeout):
             "| | **mdflow** | **glow** | **mdcat** | **streamdown** |",
             "|:---|---:|---:|---:|---:|",
             "| On-disk executable | %s | %s | %s | %s |"
-            % tuple(format_bytes(binaries[tool]) for tool in TOOLS),
+            % tuple(format_size(binaries[tool]) for tool in TOOLS),
             "",
         ]
     )
@@ -311,6 +317,11 @@ def main():
     parser.add_argument(
         "--warmups", type=int, default=1,
         help="warmup runs per renderer and input size (default: 1)",
+    )
+    parser.add_argument(
+        "--skip-slow-large-workload",
+        action="store_true",
+        help="skip glow and streamdown for the 100 MB workload",
     )
     parser.add_argument(
         "--timeout", type=int, default=100,
@@ -377,6 +388,11 @@ def main():
         results[label] = {tool: [] for tool, _ in specs}
 
         for tool, argv in specs:
+            skip_large_workload = (
+                args.skip_slow_large_workload
+                and target_size == LARGE_WORKLOAD_BYTES
+                and tool in SLOW_LARGE_WORKLOAD_TOOLS
+            )
             for warmup in range(args.warmups):
                 completed += 1
                 report_progress(
@@ -388,8 +404,25 @@ def main():
                     warmup + 1,
                     args.warmups,
                 )
+                if skip_large_workload:
+                    report_skipped(
+                        label,
+                        tool,
+                        "warmup",
+                        warmup + 1,
+                        args.warmups,
+                        "configured large-workload limit",
+                    )
+                    continue
                 if gave_up[tool]:
-                    report_skipped(label, tool, "warmup", warmup + 1, args.warmups)
+                    report_skipped(
+                        label,
+                        tool,
+                        "warmup",
+                        warmup + 1,
+                        args.warmups,
+                        "earlier timeout",
+                    )
                     continue
                 timing_path = timing_dir / ("%s-%s-warmup-%d.time" % (safe_label, tool, warmup + 1))
                 try:
@@ -408,6 +441,11 @@ def main():
         for run in range(args.runs):
             for offset in range(len(specs)):
                 tool, argv = specs[(run + offset) % len(specs)]
+                skip_large_workload = (
+                    args.skip_slow_large_workload
+                    and target_size == LARGE_WORKLOAD_BYTES
+                    and tool in SLOW_LARGE_WORKLOAD_TOOLS
+                )
                 completed += 1
                 report_progress(
                     completed,
@@ -418,8 +456,30 @@ def main():
                     run + 1,
                     args.runs,
                 )
+                if skip_large_workload:
+                    report_skipped(
+                        label,
+                        tool,
+                        "run",
+                        run + 1,
+                        args.runs,
+                        "configured large-workload limit",
+                    )
+                    results[label][tool].append({
+                        "status": "skipped",
+                        "reason": "configured large-workload limit",
+                        "run": run + 1,
+                    })
+                    continue
                 if gave_up[tool]:
-                    report_skipped(label, tool, "run", run + 1, args.runs)
+                    report_skipped(
+                        label,
+                        tool,
+                        "run",
+                        run + 1,
+                        args.runs,
+                        "earlier timeout",
+                    )
                     results[label][tool].append({
                         "status": "timeout",
                         "timeout_seconds": args.timeout,

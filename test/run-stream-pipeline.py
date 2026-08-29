@@ -198,21 +198,33 @@ output = build_and_run("duplicate-defs", r'''
 #include "md4cs.h"
 static int footnote_defs;
 static int in_footnote;
-static int in_refs;
 static char footnote_text[128];
 static int footnote_len;
-static char ref_text[256];
-static int ref_len;
+static int ref_defs;
+static char ref_label[64];
+static char ref_dest[128];
+static int ref_title_size;
+static void copy_attr(char* dst, int cap, const MD_ATTRIBUTE* attr) {
+    int n = (int)attr->size;
+    if(n > cap - 1) n = cap - 1;
+    if(n > 0) memcpy(dst, attr->text, (size_t)n);
+    dst[n] = '\0';
+}
 static int eb(MD_BLOCKTYPE t, void* d, void* u) {
-    (void)d; (void)u;
+    (void)u;
     if(t == MD_BLOCK_FOOTNOTE_DEF) { footnote_defs++; in_footnote = 1; }
-    if(t == MD_BLOCK_REFERENCE_SECTION) in_refs = 1;
+    if(t == MD_BLOCK_REFERENCE_DEF) {
+        MD_BLOCK_REFERENCE_DEF_DETAIL* def = (MD_BLOCK_REFERENCE_DEF_DETAIL*)d;
+        ref_defs++;
+        copy_attr(ref_label, (int)sizeof(ref_label), &def->label);
+        copy_attr(ref_dest, (int)sizeof(ref_dest), &def->dest);
+        ref_title_size = (int)def->title.size;
+    }
     return 0;
 }
 static int lb(MD_BLOCKTYPE t, void* d, void* u) {
     (void)d; (void)u;
     if(t == MD_BLOCK_FOOTNOTE_DEF) in_footnote = 0;
-    if(t == MD_BLOCK_REFERENCE_SECTION) in_refs = 0;
     return 0;
 }
 static int es(MD_SPANTYPE t, void* d, void* u) { (void)t; (void)d; (void)u; return 0; }
@@ -226,13 +238,6 @@ static int tx(MD_TEXTTYPE t, const MD_CHAR* s, MD_SIZE n, void* u) {
             take = (int)sizeof(footnote_text) - footnote_len - 1;
         if(take > 0) { memcpy(footnote_text + footnote_len, s, (size_t)take); footnote_len += take; }
         footnote_text[footnote_len] = '\0';
-    }
-    if(in_refs) {
-        take = (int)n;
-        if(take > (int)sizeof(ref_text) - ref_len - 1)
-            take = (int)sizeof(ref_text) - ref_len - 1;
-        if(take > 0) { memcpy(ref_text + ref_len, s, (size_t)take); ref_len += take; }
-        ref_text[ref_len] = '\0';
     }
     return 0;
 }
@@ -253,10 +258,11 @@ int main() {
     md_stream_finish(ctx);
     if(footnote_defs != 1 || strstr(footnote_text, "first footnote") == NULL
             || strstr(footnote_text, "second footnote") != NULL
-            || strstr(ref_text, "/first") == NULL
-            || strstr(ref_text, "/second") != NULL) {
-        printf("FAIL defs=%d footnote=%s refs=%s\n", footnote_defs,
-               footnote_text, ref_text);
+            || ref_defs != 1 || strcmp(ref_label, "Alpha") != 0
+            || strcmp(ref_dest, "/first") != 0 || ref_title_size != 0) {
+        printf("FAIL defs=%d footnote=%s ref_defs=%d label=%s dest=%s title_size=%d\n",
+               footnote_defs, footnote_text, ref_defs, ref_label, ref_dest,
+               ref_title_size);
         return 1;
     }
     printf("PASS\n");

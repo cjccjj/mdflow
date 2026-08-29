@@ -70,6 +70,34 @@ add_event(const char* fmt, ...)
         snprintf(event_lines[event_count++], MAX_LINE, "%s", buf);
 }
 
+#ifdef MD4C_STREAMING
+static void
+escape_attribute(const MD_ATTRIBUTE* attr, char* out, int out_size)
+{
+    int i;
+    int j = 0;
+
+    for(i = 0; i < (int)attr->size && j < out_size - 3; i++) {
+        if(attr->text[i] == '\n') {
+            out[j++] = '\\';
+            out[j++] = 'n';
+        } else if(attr->text[i] == '\r') {
+            out[j++] = '\\';
+            out[j++] = 'r';
+        } else if(attr->text[i] == '\\') {
+            out[j++] = '\\';
+            out[j++] = '\\';
+        } else if(attr->text[i] == '"') {
+            out[j++] = '\\';
+            out[j++] = '"';
+        } else {
+            out[j++] = (char)attr->text[i];
+        }
+    }
+    out[j] = '\0';
+}
+#endif
+
 
 /*
  * Block callbacks
@@ -105,6 +133,18 @@ enter_block(MD_BLOCKTYPE type, void* detail, void* userdata)
         case MD_BLOCK_ADMONITION:  add_event("+BLOCK   ADMONITION"); break;
 #ifdef MD4C_STREAMING
         case MD_BLOCK_REFERENCE_SECTION: add_event("+BLOCK   REFERENCE_SECTION"); break;
+        case MD_BLOCK_REFERENCE_DEF: {
+            MD_BLOCK_REFERENCE_DEF_DETAIL* d = (MD_BLOCK_REFERENCE_DEF_DETAIL*)detail;
+            char label[MAX_LINE];
+            char dest[MAX_LINE];
+            char title[MAX_LINE];
+            escape_attribute(&d->label, label, (int)sizeof(label));
+            escape_attribute(&d->dest, dest, (int)sizeof(dest));
+            escape_attribute(&d->title, title, (int)sizeof(title));
+            add_event("+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"%s\", dest=\"%s\", title=\"%s\"}",
+                      label, dest, title);
+            break;
+        }
 #endif
         default: add_event("+BLOCK   type=%d", type); break;
     }
@@ -137,6 +177,7 @@ leave_block(MD_BLOCKTYPE type, void* detail, void* userdata)
         case MD_BLOCK_ADMONITION:  add_event("-BLOCK   ADMONITION"); break;
 #ifdef MD4C_STREAMING
         case MD_BLOCK_REFERENCE_SECTION: add_event("-BLOCK   REFERENCE_SECTION"); break;
+        case MD_BLOCK_REFERENCE_DEF: add_event("-BLOCK   MD_BLOCK_REFERENCE_DEF"); break;
 #endif
         default: add_event("-BLOCK   type=%d", type); break;
     }

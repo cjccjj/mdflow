@@ -33,20 +33,32 @@
 /* Opaque streaming state. */
 typedef struct mdflow_tag mdflow_t;
 
+/* Built-in rendering themes. DEFAULT is selected when no theme is provided. */
+typedef enum {
+    MDFLOW_THEME_DEFAULT = 0,
+    MDFLOW_THEME_TERM_256
+} mdflow_theme_t;
+
+/* Fixed renderer configuration. */
+typedef struct {
+    mdflow_theme_t theme;
+    int plain;
+    int osc8;
+} mdflow_config_t;
+
 /* Open a streaming Markdown-to-ANSI renderer.
  *
  *   term_width  — terminal columns for table width limiting (0 = no limit)
+ *   config      — renderer configuration (NULL = DEFAULT, styled, OSC 8 on)
  *   output      — called for each chunk of ANSI output
  *   userdata    — passed through to output
  *
- * Returns NULL on failure. */
+ * The configuration is copied during this call. Invalid theme values cause
+ * the call to fail. Returns NULL on failure. */
 mdflow_t* mdflow_open(int term_width,
+                      const mdflow_config_t* config,
                       void (*output)(const char* str, int size, void* userdata),
                       void* userdata);
-
-/* Enable or disable OSC 8 clickable hyperlinks (enabled by default).
- * Call after mdflow_open() and before mdflow_close(). */
-int mdflow_set_osc8(mdflow_t* mf, int enable);
 
 /* Feed a chunk of Markdown input.
  * len must be non-negative; data may be NULL only when len is zero.

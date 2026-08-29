@@ -23,13 +23,13 @@ OSC8_RE = re.compile('\x1b\\]8;;[^\x1b\x07]*(\x1b\\\\|\x07)')
 CASES = [
     # Ref use after a consumed reference definition.
     ('[foo]: /url "title"\n\n[foo]',
-     'foo ref:[foo]\n\n\nReferences\n[foo]: /url "title"'),
+     'foo ref:[foo]\n\n\nReferences\n[foo] /url (title)'),
     # Blockquote text after a consumed reference definition.
     ('# [Foo]\n[foo]: /url\n> bar',
-     'Foo ref:[Foo]\n\n│ bar\n\n\n\nReferences\n[foo]: /url'),
+     'Foo ref:[Foo]\n\n│ bar\n\n\n\nReferences\n[foo] /url'),
     # Last list item after a reference definition inside the list.
     ('- a\n- b\n\n  [ref]: /url\n- d',
-     '• a\n• b\n\n• d\n\n\nReferences\n[ref]: /url'),
+     '• a\n• b\n\n• d\n\n\nReferences\n[ref] /url'),
 ]
 
 
@@ -45,7 +45,7 @@ def main():
 
     failed = 0
     for i, (markdown, expected) in enumerate(CASES, 1):
-        p = subprocess.run([args.program, '--typewriter-off'],
+        p = subprocess.run([args.program, '--plain', '--typewriter-off'],
                            input=markdown.encode('utf-8'),
                            capture_output=True)
         if p.returncode != 0:

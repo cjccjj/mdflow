@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <pthread.h>
@@ -184,16 +185,23 @@ usage(void)
         "mdflow -- streaming Markdown-to-terminal renderer\n"
         "Version %d.%d.%d\n"
         "\n"
-        "Usage:  llm \"hello...\" | mdflow   pipe markdown to mdflow\n"
-        "        mdflow < file.md          redirect a file to mdflow\n"
+        "Quick usage:\n"
+        "  my-ai-tool \"hello...\" | mdflow   # stream live Markdown\n"
+        "  mdflow < file.md                 # render a file via stdin\n"
+        "  mdflow file.md                   # render one file by path\n"
         "\n"
-        "Options:\n"
-        "  -h, --help           Display this help and exit\n"
-        "  --typewriter-off     Disable typewriter effect\n"
-        "  --osc8-off           Disable OSC 8 hyperlinks and show link URLs\n"
+        "Usage: mdflow [OPTIONS] [FILE]\n"
         "\n"
-        "Note: mdflow reads only from stdin. It does not accept filenames as\n"
-        "arguments. Use a shell pipe or input redirection as shown above.\n",
+        "OPTIONS:\n"
+        "  -h, --help           # Display this help and exit\n"
+        "  --typewriter-off     # Disable typewriter effect\n"
+        "  --osc8-off           # Disable OSC 8 hyperlinks and show link URLs\n"
+        "  --theme-term-256    # Use the TERM_256 rendering theme\n"
+        "  --plain              # Disable renderer styling and OSC 8\n"
+        "\n"
+        "FILE:\n"
+        "  Omit FILE or use '-' to read stdin.\n"
+        "  Use '--' before a filename beginning with '-'.\n",
         MDFLOW_VERSION_MAJOR, MDFLOW_VERSION_MINOR, MDFLOW_VERSION_PATCH);
 }
 
@@ -215,6 +223,9 @@ typedef struct {
     int typewriter_off;
     int report;
     int osc8_off;
+    mdflow_theme_t theme;
+    int plain;
+    int theme_selected;
 } typewriter_opts_t;
 
 
@@ -642,6 +653,7 @@ print_typewriter_report(const tw_input_state_t* state,
 static int
 run_typewriter(int term_width, const typewriter_opts_t* opts)
 {
+    mdflow_config_t config;
     mdflow_t* mf = NULL;
     tw_input_state_t input_state;
     tw_pacer_t pacer;
@@ -684,15 +696,16 @@ run_typewriter(int term_width, const typewriter_opts_t* opts)
         return 1;
     }
 
-    mf = mdflow_open(term_width, typewriter_output_cb, &sink);
+    config.theme = opts->theme;
+    config.plain = opts->plain;
+    config.osc8 = !opts->osc8_off;
+    mf = mdflow_open(term_width, &config, typewriter_output_cb, &sink);
     if(mf == NULL) {
         fprintf(stderr, "mdflow_open failed.\n");
         mutex_destroy(&lock);
         cond_destroy(&cond);
         return 1;
     }
-    mdflow_set_osc8(mf, !opts->osc8_off);
-
     start_time = tw_monotonic();
     if(stdin_is_regular_file()) {
         locked = 1;     /* file redirect: passthrough, never re-evaluated */
@@ -844,7 +857,8 @@ finish:
 
     /* CLI epilogue, identical to the non-typewriter path. */
     fputc('\n', stdout);
-    output_cb("\033[0m", 4, NULL);
+    if(!opts->plain)
+        output_cb("\033[0m", 4, NULL);
 
     now = tw_monotonic();
     if(opts->report)
@@ -862,34 +876,69 @@ finish:
 
 
 static int
-parse_options(int argc, char* argv[], typewriter_opts_t* o, int* show_help)
+parse_options(int argc, char* argv[], typewriter_opts_t* o, int* show_help,
+              const char** input_path)
 {
     int i;
+    int reading_options = 1;
 
     memset(o, 0, sizeof(*o));
+    o->theme = MDFLOW_THEME_DEFAULT;
+    *input_path = NULL;
 
     for(i = 1; i < argc; i++) {
         const char* arg = argv[i];
 
-        if(strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
+        if(reading_options && strcmp(arg, "--") == 0) {
+            reading_options = 0;
+            continue;
+        }
+        if(reading_options && (strcmp(arg, "-h") == 0
+                             || strcmp(arg, "--help") == 0)) {
             *show_help = 1;
             return 0;
         }
-        if(strcmp(arg, "--typewriter-off") == 0) {
+        if(reading_options && strcmp(arg, "--typewriter-off") == 0) {
             o->typewriter_off = 1;
             continue;
         }
-        if(strcmp(arg, "--report") == 0) {
+        if(reading_options && strcmp(arg, "--report") == 0) {
             o->report = 1;
             continue;
         }
-        if(strcmp(arg, "--osc8-off") == 0) {
+        if(reading_options && strcmp(arg, "--osc8-off") == 0) {
             o->osc8_off = 1;
             continue;
         }
+        if(reading_options && (strcmp(arg, "--theme-term-256") == 0
+                             || strcmp(arg, "--plain") == 0)) {
+            mdflow_theme_t selected = MDFLOW_THEME_DEFAULT;
+            int selected_plain = 0;
+            if(strcmp(arg, "--theme-term-256") == 0)
+                selected = MDFLOW_THEME_TERM_256;
+            else if(strcmp(arg, "--plain") == 0)
+                selected_plain = 1;
+            if(o->theme_selected
+                    && (o->plain != selected_plain
+                        || (!selected_plain && o->theme != selected))) {
+                fprintf(stderr, "mdflow: conflicting theme options\n");
+                return -1;
+            }
+            o->theme = selected;
+            o->plain = selected_plain;
+            o->theme_selected = 1;
+            continue;
+        }
 
-        fprintf(stderr, "mdflow: unknown option: %s\n", arg);
-        return -1;
+        if(reading_options && arg[0] == '-' && strcmp(arg, "-") != 0) {
+            fprintf(stderr, "mdflow: unknown option: %s\n", arg);
+            return -1;
+        }
+        if(*input_path != NULL) {
+            fprintf(stderr, "mdflow: too many input files: %s\n", arg);
+            return -1;
+        }
+        *input_path = arg;
     }
     return 0;
 }
@@ -899,6 +948,7 @@ int
 main(int argc, char* argv[])
 {
     typewriter_opts_t opts;
+    mdflow_config_t config;
     int show_help = 0;
     mdflow_t* mf = NULL;
     mdflow_feeder_t feeder;
@@ -906,18 +956,38 @@ main(int argc, char* argv[])
     int nread;
     int ret = 0;
     int term_width = 0;
+    const char* input_path = NULL;
+    int input_fd;
 
     feeder.data = NULL;
     feeder.alloc = 0;
     feeder.len = 0;
 
-    if(parse_options(argc, argv, &opts, &show_help) != 0) {
+    if(parse_options(argc, argv, &opts, &show_help, &input_path) != 0) {
         usage();
         return 1;
     }
     if(show_help) {
         usage();
         return 0;
+    }
+
+    if(input_path != NULL && strcmp(input_path, "-") != 0) {
+        input_fd = open(input_path, O_RDONLY);
+        if(input_fd < 0) {
+            fprintf(stderr, "mdflow: cannot open %s: %s\n", input_path,
+                    strerror(errno));
+            return 1;
+        }
+        if(input_fd != STDIN_FILENO) {
+            if(dup2(input_fd, STDIN_FILENO) < 0) {
+                fprintf(stderr, "mdflow: cannot use %s: %s\n", input_path,
+                        strerror(errno));
+                close(input_fd);
+                return 1;
+            }
+            close(input_fd);
+        }
     }
 
     setbuf(stdout, NULL);
@@ -946,12 +1016,14 @@ main(int argc, char* argv[])
     if(!opts.typewriter_off)
         return run_typewriter(term_width, &opts);
 
-    mf = mdflow_open(term_width, output_cb, NULL);
+    config.theme = opts.theme;
+    config.plain = opts.plain;
+    config.osc8 = !opts.osc8_off;
+    mf = mdflow_open(term_width, &config, output_cb, NULL);
     if(mf == NULL) {
         fprintf(stderr, "mdflow_open failed.\n");
         return 1;
     }
-    mdflow_set_osc8(mf, !opts.osc8_off);
 
     while(1) {
         nread = (int) read(STDIN_FILENO, chunk, CHUNK_SIZE);
@@ -989,7 +1061,8 @@ out:
         mdflow_close(mf);
 
     fputc('\n', stdout);
-    output_cb("\033[0m", 4, NULL);
+    if(!opts.plain)
+        output_cb("\033[0m", 4, NULL);
 
     return ret;
 }

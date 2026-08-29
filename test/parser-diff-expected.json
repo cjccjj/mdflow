@@ -20,17 +20,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo bar\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "coverage.txt#18": {
       "batch": [
@@ -90,38 +85,18 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/foo\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"qnptgbh\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/qnptgbh\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"abgbrwcv\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/abgbrwcv\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"alqadfgn\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/alqadfgn\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/foo\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"qnptgbh\", dest=\"/qnptgbh\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"abgbrwcv\", dest=\"/abgbrwcv\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"alqadfgn\", dest=\"/alqadfgn\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 49
+      "stream_count": 33
     },
     "coverage.txt#3": {
       "batch": [
@@ -143,17 +118,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"PŘÍLIŠ ŽLUŤOUČKÝ KŮŇ ÚPĚL ĎÁBELSKÉ ÓDY.\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"PŘÍLIŠ ŽLUŤOUČKÝ KŮŇ ÚPĚL ĎÁBELSKÉ ÓDY.\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "regressions.txt#102": {
       "batch": [
@@ -267,17 +237,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^1\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"a@b.co\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^1\", dest=\"a@b.co\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 16
+      "stream_count": 12
     },
     "regressions.txt#16": {
       "batch": [
@@ -289,17 +254,12 @@
       "stream": [
         "+BLOCK   DOC",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"\\\\\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"x\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"\\\\\", dest=\"x\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 10
+      "stream_count": 6
     },
     "regressions.txt#2": {
       "batch": [
@@ -311,17 +271,12 @@
       "stream": [
         "+BLOCK   DOC",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^x\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"[**x*]()\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^x\", dest=\"[**x*]()\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 10
+      "stream_count": 6
     },
     "regressions.txt#20": {
       "batch": [
@@ -429,17 +384,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"SS ẞ\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"SS ẞ\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 20
+      "stream_count": 16
     },
     "regressions.txt#3": {
       "batch": [
@@ -509,17 +459,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ab\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/foo\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ab\", dest=\"/foo\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 28
+      "stream_count": 24
     },
     "regressions.txt#33": {
       "batch": [
@@ -547,17 +492,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"a b\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/foo\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"a b\", dest=\"/foo\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 20
+      "stream_count": 16
     },
     "regressions.txt#37": {
       "batch": [
@@ -622,17 +562,12 @@
         "TEXT  \"]\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^1\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"Note.\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^1\", dest=\"Note.\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 21
+      "stream_count": 17
     },
     "regressions.txt#40": {
       "batch": [
@@ -658,24 +593,14 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"img\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"img_url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"link\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"link_url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"img\", dest=\"img_url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"link\", dest=\"link_url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 23
+      "stream_count": 15
     },
     "regressions.txt#41": {
       "batch": [
@@ -726,17 +651,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"fooﬗ\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"fooﬗ\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 20
+      "stream_count": 16
     },
     "regressions.txt#45": {
       "batch": [
@@ -1028,21 +948,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"ti\\",
-        "tle\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"ti\\ntle\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "regressions.txt#76": {
       "batch": [
@@ -1124,17 +1035,12 @@
         "-BLOCK   P",
         "-BLOCK   QUOTE",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo bar\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 17
+      "stream_count": 13
     },
     "regressions.txt#81": {
       "batch": [
@@ -1267,17 +1173,12 @@
         "-BLOCK   LI",
         "-BLOCK   UL",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"x\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"x\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"x\", dest=\"x\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 21
+      "stream_count": 17
     },
     "regressions.txt#95": {
       "batch": [
@@ -1791,17 +1692,12 @@
         "TEXT  \".\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^1\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"Note.\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^1\", dest=\"Note.\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 17
+      "stream_count": 13
     },
     "spec-footnotes.txt#15": {
       "batch": [
@@ -1859,24 +1755,14 @@
         "TEXT  \" referenced.\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^1\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"Used.\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^2\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"Unused.\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^1\", dest=\"Used.\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^2\", dest=\"Unused.\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 23
+      "stream_count": 15
     },
     "spec-footnotes.txt#18": {
       "batch": [
@@ -2061,73 +1947,28 @@
         "TEXT  \".\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^1\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"A.\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^2\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"B.\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^3\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"C.\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^4\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"D.\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^5\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"E.\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^6\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"F.\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^7\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"G.\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^8\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"H.\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^9\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"I.\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^1\", dest=\"A.\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^2\", dest=\"B.\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^3\", dest=\"C.\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^4\", dest=\"D.\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^5\", dest=\"E.\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^6\", dest=\"F.\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^7\", dest=\"G.\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^8\", dest=\"H.\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^9\", dest=\"I.\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 76
+      "stream_count": 40
     },
     "spec-footnotes.txt#25": {
       "batch": [
@@ -2164,17 +2005,12 @@
         "TEXT  \": A note.\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^a b\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"not-a-footnote\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^a b\", dest=\"not-a-footnote\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 28
+      "stream_count": 24
     },
     "spec-footnotes.txt#26": {
       "batch": [
@@ -2200,17 +2036,12 @@
         "TEXT  \".\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"^1\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"content\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"^1\", dest=\"content\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 17
+      "stream_count": 13
     },
     "spec-footnotes.txt#3": {
       "batch": [
@@ -3110,17 +2941,12 @@
         "<SPAN    MD_SPAN_A",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"qux\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"qux\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 33
+      "stream_count": 29
     },
     "spec-tables.txt#12": {
       "batch": [
@@ -4051,17 +3877,12 @@
         "TEXT  \"]\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 17
+      "stream_count": 13
     },
     "spec-wiki-links.txt#16": {
       "batch": [
@@ -4152,17 +3973,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 16
+      "stream_count": 12
     },
     "spec-wiki-links.txt#19": {
       "batch": [
@@ -4188,17 +4004,12 @@
         "TEXT  \"]\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 17
+      "stream_count": 13
     },
     "spec-wiki-links.txt#2": {
       "batch": [
@@ -5008,20 +4819,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#193": {
       "batch": [
@@ -5043,20 +4846,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"the title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"the title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#194": {
       "batch": [
@@ -5080,20 +4875,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"Foo*bar\\]\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"my_(url)\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title (with parens)\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"Foo*bar]\", dest=\"my_(url)\", title=\"title (with parens)\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 19
+      "stream_count": 12
     },
     "spec.txt#195": {
       "batch": [
@@ -5115,20 +4902,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"Foo bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"my url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"Foo bar\", dest=\"my url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#196": {
       "batch": [
@@ -5150,24 +4929,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"",
-        "title",
-        "line1",
-        "line2",
-        "\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"\\ntitle\\nline1\\nline2\\n\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#197": {
       "batch": [
@@ -5225,17 +4992,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#199": {
       "batch": [
@@ -5287,16 +5049,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 14
+      "stream_count": 11
     },
     "spec.txt#201": {
       "batch": [
@@ -5352,20 +5110,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\\bar\\*baz\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"foo\\\"bar\\baz\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\\\\bar*baz\", title=\"foo\\\"bar\\\\baz\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#203": {
       "batch": [
@@ -5387,17 +5137,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#204": {
       "batch": [
@@ -5419,17 +5164,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"first\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"first\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#205": {
       "batch": [
@@ -5451,17 +5191,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"FOO\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"FOO\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#206": {
       "batch": [
@@ -5483,17 +5218,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ΑΓΩ\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/φου\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ΑΓΩ\", dest=\"/φου\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#207": {
       "batch": [
@@ -5505,17 +5235,12 @@
       "stream": [
         "+BLOCK   DOC",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 10
+      "stream_count": 6
     },
     "spec.txt#208": {
       "batch": [
@@ -5545,17 +5270,12 @@
         "TEXT  \"bar\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 20
+      "stream_count": 16
     },
     "spec.txt#209": {
       "batch": [
@@ -5601,17 +5321,12 @@
         "TEXT  \"\"title\" ok\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 14
     },
     "spec.txt#211": {
       "batch": [
@@ -5741,17 +5456,12 @@
         "-BLOCK   P",
         "-BLOCK   QUOTE",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 20
+      "stream_count": 16
     },
     "spec.txt#215": {
       "batch": [
@@ -5864,37 +5574,16 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/foo-url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/bar-url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"bar\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"baz\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/baz-url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/foo-url\", title=\"foo\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"bar\", dest=\"/bar-url\", title=\"bar\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"baz\", dest=\"/baz-url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 43
+      "stream_count": 25
     },
     "spec.txt#218": {
       "batch": [
@@ -5920,17 +5609,12 @@
         "+BLOCK   QUOTE",
         "-BLOCK   QUOTE",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 17
+      "stream_count": 13
     },
     "spec.txt#220": {
       "batch": [
@@ -6165,20 +5849,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/bar\\*\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"ti\\*tle\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/bar*\", title=\"ti*tle\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#230": {
       "batch": [
@@ -7775,17 +7451,12 @@
         "-BLOCK   LI",
         "-BLOCK   UL",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ref\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ref\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 24
+      "stream_count": 20
     },
     "spec.txt#319": {
       "batch": [
@@ -8056,20 +7727,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/f&ouml;&ouml;\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"f&ouml;&ouml;\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/f&ouml;&ouml;\", title=\"f&ouml;&ouml;\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#37": {
       "batch": [
@@ -8525,20 +8188,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"bar\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#528": {
       "batch": [
@@ -8565,17 +8220,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ref\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/uri\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ref\", dest=\"/uri\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 20
+      "stream_count": 16
     },
     "spec.txt#529": {
       "batch": [
@@ -8601,17 +8251,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ref\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/uri\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ref\", dest=\"/uri\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 17
+      "stream_count": 13
     },
     "spec.txt#530": {
       "batch": [
@@ -8653,17 +8298,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ref\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/uri\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ref\", dest=\"/uri\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 25
+      "stream_count": 21
     },
     "spec.txt#531": {
       "batch": [
@@ -8689,17 +8329,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ref\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/uri\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ref\", dest=\"/uri\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 17
+      "stream_count": 13
     },
     "spec.txt#532": {
       "batch": [
@@ -8731,17 +8366,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ref\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/uri\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ref\", dest=\"/uri\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 20
+      "stream_count": 16
     },
     "spec.txt#533": {
       "batch": [
@@ -8779,17 +8409,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ref\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/uri\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ref\", dest=\"/uri\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 23
+      "stream_count": 19
     },
     "spec.txt#534": {
       "batch": [
@@ -8813,17 +8438,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ref\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/uri\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ref\", dest=\"/uri\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 16
+      "stream_count": 12
     },
     "spec.txt#535": {
       "batch": [
@@ -8847,17 +8467,12 @@
         "TEXT  \"*\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ref\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/uri\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ref\", dest=\"/uri\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 16
+      "stream_count": 12
     },
     "spec.txt#536": {
       "batch": [
@@ -8877,17 +8492,12 @@
         "TEXT  \"<bar attr=\"][ref]\">\"  (HTML)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ref\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/uri\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ref\", dest=\"/uri\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 14
+      "stream_count": 10
     },
     "spec.txt#537": {
       "batch": [
@@ -8911,17 +8521,12 @@
         "<SPAN    MD_SPAN_CODE",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ref\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/uri\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ref\", dest=\"/uri\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 16
+      "stream_count": 12
     },
     "spec.txt#538": {
       "batch": [
@@ -8945,17 +8550,12 @@
         "<SPAN    MD_SPAN_A",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ref\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/uri\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ref\", dest=\"/uri\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 16
+      "stream_count": 12
     },
     "spec.txt#539": {
       "batch": [
@@ -8977,20 +8577,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"bar\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#540": {
       "batch": [
@@ -9012,17 +8604,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"SS\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"SS\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#541": {
       "batch": [
@@ -9044,17 +8631,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"Foo bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"Foo bar\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#542": {
       "batch": [
@@ -9081,20 +8663,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"bar\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 22
+      "stream_count": 15
     },
     "spec.txt#543": {
       "batch": [
@@ -9124,20 +8698,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"bar\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 22
+      "stream_count": 15
     },
     "spec.txt#544": {
       "batch": [
@@ -9159,17 +8725,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url1\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url1\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#545": {
       "batch": [
@@ -9191,17 +8752,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo!\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo!\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#546": {
       "batch": [
@@ -9325,17 +8881,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"ref\\[\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/uri\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"ref[\", dest=\"/uri\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#550": {
       "batch": [
@@ -9359,17 +8910,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"bar\\\\\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/uri\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"bar\\\\\", dest=\"/uri\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 16
+      "stream_count": 12
     },
     "spec.txt#551": {
       "batch": [
@@ -9459,20 +9005,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#554": {
       "batch": [
@@ -9500,20 +9038,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"*foo* bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"*foo* bar\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 21
+      "stream_count": 14
     },
     "spec.txt#555": {
       "batch": [
@@ -9535,20 +9065,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#556": {
       "batch": [
@@ -9577,20 +9099,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 21
+      "stream_count": 14
     },
     "spec.txt#557": {
       "batch": [
@@ -9612,20 +9126,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#558": {
       "batch": [
@@ -9653,20 +9159,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"*foo* bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"*foo* bar\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 21
+      "stream_count": 14
     },
     "spec.txt#559": {
       "batch": [
@@ -9698,20 +9196,12 @@
         "TEXT  \"]\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"*foo* bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"*foo* bar\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 23
+      "stream_count": 16
     },
     "spec.txt#560": {
       "batch": [
@@ -9735,17 +9225,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 16
+      "stream_count": 12
     },
     "spec.txt#561": {
       "batch": [
@@ -9767,20 +9252,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#562": {
       "batch": [
@@ -9804,17 +9281,12 @@
         "TEXT  \" bar\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 16
+      "stream_count": 12
     },
     "spec.txt#563": {
       "batch": [
@@ -9834,20 +9306,12 @@
         "TEXT  \"foo]\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 17
+      "stream_count": 10
     },
     "spec.txt#564": {
       "batch": [
@@ -9871,17 +9335,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo*\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo*\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 16
+      "stream_count": 12
     },
     "spec.txt#565": {
       "batch": [
@@ -9903,24 +9362,14 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url1\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url2\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url1\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"bar\", dest=\"/url2\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 21
+      "stream_count": 13
     },
     "spec.txt#566": {
       "batch": [
@@ -9942,17 +9391,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url1\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url1\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#567": {
       "batch": [
@@ -9974,17 +9418,12 @@
         "<SPAN    MD_SPAN_A",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url1\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url1\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#568": {
       "batch": [
@@ -10008,17 +9447,12 @@
         "TEXT  \"(not a link)\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url1\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url1\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 16
+      "stream_count": 12
     },
     "spec.txt#569": {
       "batch": [
@@ -10044,17 +9478,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"baz\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"baz\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 14
     },
     "spec.txt#570": {
       "batch": [
@@ -10082,24 +9511,14 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"baz\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url1\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url2\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"baz\", dest=\"/url1\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"bar\", dest=\"/url2\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 24
+      "stream_count": 16
     },
     "spec.txt#571": {
       "batch": [
@@ -10125,24 +9544,14 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"baz\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url1\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url2\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"baz\", dest=\"/url1\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url2\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 24
+      "stream_count": 16
     },
     "spec.txt#573": {
       "batch": [
@@ -10170,20 +9579,12 @@
         "<SPAN    MD_SPAN_REFERENCE_IMAGE",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo *bar*\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"train.jpg\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"train & tracks\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo *bar*\", dest=\"train.jpg\", title=\"train & tracks\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 21
+      "stream_count": 14
     },
     "spec.txt#576": {
       "batch": [
@@ -10211,20 +9612,12 @@
         "<SPAN    MD_SPAN_REFERENCE_IMAGE",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo *bar*\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"train.jpg\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"train & tracks\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo *bar*\", dest=\"train.jpg\", title=\"train & tracks\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 21
+      "stream_count": 14
     },
     "spec.txt#577": {
       "batch": [
@@ -10252,20 +9645,12 @@
         "<SPAN    MD_SPAN_REFERENCE_IMAGE",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"FOOBAR\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"train.jpg\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"train & tracks\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"FOOBAR\", dest=\"train.jpg\", title=\"train & tracks\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 21
+      "stream_count": 14
     },
     "spec.txt#582": {
       "batch": [
@@ -10287,17 +9672,12 @@
         "<SPAN    MD_SPAN_REFERENCE_IMAGE",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"bar\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#583": {
       "batch": [
@@ -10319,17 +9699,12 @@
         "<SPAN    MD_SPAN_REFERENCE_IMAGE",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"BAR\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"BAR\", dest=\"/url\", title=\"\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 15
+      "stream_count": 11
     },
     "spec.txt#584": {
       "batch": [
@@ -10351,20 +9726,12 @@
         "<SPAN    MD_SPAN_REFERENCE_IMAGE",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#585": {
       "batch": [
@@ -10392,20 +9759,12 @@
         "<SPAN    MD_SPAN_REFERENCE_IMAGE",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"*foo* bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"*foo* bar\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 21
+      "stream_count": 14
     },
     "spec.txt#586": {
       "batch": [
@@ -10427,20 +9786,12 @@
         "<SPAN    MD_SPAN_REFERENCE_IMAGE",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#587": {
       "batch": [
@@ -10469,20 +9820,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 21
+      "stream_count": 14
     },
     "spec.txt#588": {
       "batch": [
@@ -10504,20 +9847,12 @@
         "<SPAN    MD_SPAN_REFERENCE_IMAGE",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#589": {
       "batch": [
@@ -10545,20 +9880,12 @@
         "<SPAN    MD_SPAN_REFERENCE_IMAGE",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"*foo* bar\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"*foo* bar\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 21
+      "stream_count": 14
     },
     "spec.txt#590": {
       "batch": [
@@ -10613,20 +9940,12 @@
         "<SPAN    MD_SPAN_REFERENCE_IMAGE",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#592": {
       "batch": [
@@ -10648,20 +9967,12 @@
         "TEXT  \"foo]\"  (NORMAL)",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 18
+      "stream_count": 11
     },
     "spec.txt#593": {
       "batch": [
@@ -10685,20 +9996,12 @@
         "<SPAN    MD_SPAN_REFERENCE_LINK",
         "-BLOCK   P",
         "+BLOCK   REFERENCE_SECTION",
-        "TEXT  \"[\"  (NORMAL)",
-        "TEXT  \"foo\"  (NORMAL)",
-        "TEXT  \"]:\"  (NORMAL)",
-        "TEXT  \" \"  (NORMAL)",
-        "TEXT  \"/url\"  (NORMAL)",
-        "TEXT  \" \"\"  (NORMAL)",
-        "TEXT  \"title\"  (NORMAL)",
-        "TEXT  \"\"\"  (NORMAL)",
-        "TEXT  \"",
-        "\"  (NORMAL)",
+        "+BLOCK   MD_BLOCK_REFERENCE_DEF  {label=\"foo\", dest=\"/url\", title=\"title\"}",
+        "-BLOCK   MD_BLOCK_REFERENCE_DEF",
         "-BLOCK   REFERENCE_SECTION",
         "-BLOCK   DOC"
       ],
-      "stream_count": 19
+      "stream_count": 12
     },
     "spec.txt#615": {
       "batch": [
