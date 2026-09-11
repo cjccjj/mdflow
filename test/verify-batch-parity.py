@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE.md)
+# Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE)
 """
 Verify that our batch-mode md4cs.c produces identical parser output
 to MD4C's md4c.c. This guards against accidental corruption of

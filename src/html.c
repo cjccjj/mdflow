@@ -13,7 +13,7 @@
  * callback (same for PIs, declarations and CDATA).
  *
  * This file is part of mdflow (https://github.com/cjccjj/mdflow).
- * Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE.md).
+ * Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE).
  */
 
 #include "html.h"

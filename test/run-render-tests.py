@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE.md)
+# Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE)
 """Golden-output tests for the plain Markdown renderer.
 
 Runs mdflow with ``--plain --typewriter-off`` on each example in

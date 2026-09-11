@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE.md)
+# Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE)
 """Verify the batch build contains no streaming-only parser code.
 
 Rule #1 of this project: the batch-mode compilation of src/md4cs.c must see

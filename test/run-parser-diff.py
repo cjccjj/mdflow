@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE.md)
+# Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE)
 """
 Build batch and streaming parser-diff binaries, then compare their
 callback sequences across all spec examples.

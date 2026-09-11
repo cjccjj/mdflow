@@ -28,7 +28,7 @@
  * Character classes are ASCII (word chars: [A-Za-z0-9_], plus $).
  *
  * This file is part of mdflow (https://github.com/cjccjj/mdflow).
- * Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE.md).
+ * Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE).
  *
  * ------------------------------------------------------------------
  * Portions of this file are derived from microlight.js

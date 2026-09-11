@@ -1,24 +1,36 @@
-# mdflow
+# mdflow - True Streaming Markdown-to-ANSI Renderer
 
-> #### mdflow is a small, fast, true streaming Markdown-to-terminal renderer
->
-> *Parser derived from the proven [MD4C](https://github.com/mity/md4c), restructured for true streaming.*
+**mdflow is a true streaming Markdown-to-ANSI renderer for LLM output.** It
+formats Markdown as it arrives, before the response is complete, without
+waiting for the full input or reparsing everything received so far.
+
+```sh
+your-llm-command | mdflow
+```
+
+Built in C with a reworked [MD4C](https://github.com/mity/md4c) parser, mdflow
+is a lightweight CLI and embeddable library.
 
 ### See it in action
 
-![Demo](assets/demo.gif)
+![mdflow rendering streamed Markdown as styled ANSI terminal output](assets/demo.gif)
+
+> [!NOTE]
+> This is `cjccjj/mdflow`, a native C Markdown-to-terminal renderer. It is not
+> related to similarly named Markdown workflow or agent packages.
 
 ---
 
 ## Why mdflow
 
-- **Real-time Streaming** - must have for AI
-- **CommonMark + GFM support tested** - tested against the CommonMark specification (652 examples)
-- **Very Fast** - 10 times faster than many others
-- **Flat memory** - use little memory and stays flat as input grows
-- **Lightweight** - tiny binary easy to embed in an app or resource-constrained devices
+- **Live output:** see formatted Markdown while an LLM response is still arriving.
+- **Markdown support:** CommonMark tested against 652 examples, plus documented GFM features.
+- **Fast and lightweight:** 0.55 s and 2.2 MB peak RAM for the 10 MB benchmark input.
+- **Easy to embed:** a native C CLI and libc-only library.
 
-### Comparison
+### mdflow vs. Streamdown, mdcat, and Glow
+
+Compare mdflow with Streamdown, mdcat, and Glow on streaming, Markdown support, speed, memory, and binary size.
 
 |             |             | <ins> mdflow </ins> | streamdown | mdcat | glow (glamour) |  
 | :---------- | :---------- | :-----------------: | :--------: | :---: | :-------------: |  
@@ -43,50 +55,6 @@
 
 ---
 
-## Features
-
-- **CommonMark + GFM support** - tables, strikethrough, task lists, autolinks, footnotes, and admonitions, with known differences and streaming limitations documented below.
-- **Extras** - highlights.
-- **Tables** - box-drawing borders, alignment, automatic layout, and wrapping that preserves styling.
-- **Unicode-correct** - tested with CJK and emoji.
-- **Syntax highlighting** - simplified, generic highlighting using five styles, applied to code blocks in major programming languages.
-- **Inline HTML** - tags and entities styled for the terminal, with comments hidden.
-- **HTML blocks** - raw HTML scanned and styled, entities decoded, comments hidden, and Markdown inside is left literal.
-- **Clickable links** - links, autolinks, and emails are OSC 8 terminal hyperlinks.
-- **Color themes** - a default theme that respects the terminal's local color palette, a TERM_256 theme that uses a more stable 256-color palette, and a plain mode that disables ANSI styling.
-
-### CommonMark + GFM support, extensions, and limitations
-
-This section describes mdflow's current level of Markdown support and its known differences. It is not a claim of full conformance. CommonMark and GFM define expected HTML output in their examples. This section only addresses the parser, not mdflow's ANSI renderer or its terminal presentation.
-
-mdflow is tested against all 652 CommonMark specification examples and the GFM features listed above. The complete example set is included in the test suite. MD4C is fully CommonMark-compliant; mdflow's parser produces output identical to MD4C for all examples except those involving a limitation documented below.
-
-### Streaming limitations
-
-A proper live Markdown generator already avoids features that depend on future input. In static documents, the practical impact remains small.
-
-#### Could match with additional buffering, but mdflow chooses not to
-
-| Feature | mdflow behavior | Practical impact |
-| :------ | :-------------- | :--------------- |
-| Tight/loose lists | The first list item may retain tight. | No visible difference in the terminal. |
-| Multi-line Setext headings | Only the last line becomes a heading. | Affects only uncommon multi-line Setext headings. |
-
-#### Cannot be fully streamed
-
-| Feature | mdflow behavior | Practical impact |
-| :------ | :-------------- | :--------------- |
-| Reference links | Reference shown immediately without resolving definition, and definitions appear at the end. | Rare in live Markdown. Not fully functional in a terminal anyway. No content is lost. |
-| Footnotes | Footnote reference shown immediately without validating definition. | Rare in live Markdown. No content is lost. |
-
-### Other notes
-
-- **Syntax highlighting** - current highlighting is lightweight and generic, rather than language-specific.
-- **No pager or TUI** - mdflow renders; scrolling is left to `more` or `less -R`.
-- **Customization** - two built-in themes and one fixed configuration object are exposed; user-defined themes and additional feature flags are not exposed.
-
----
-
 ## Install
 
 For Linux and macOS, installs to `~/.local/bin`:
@@ -99,7 +67,7 @@ Or download a binary from [Releases](https://github.com/cjccjj/mdflow/releases) 
 
 ---
 
-## Use
+## Use mdflow
 
 Pipe Markdown into mdflow - live LLM output, live logs, files, or anything that streams:
 
@@ -149,7 +117,62 @@ mdflow < README.md | more
   terminals such as Apple Terminal.
 - `--theme-term-256`: Use the TERM_256 rendering theme, which is more reliable across terminals. If omitted, the DEFAULT rendering theme is used.
 - `--plain`: Select plain output mode, disabling renderer-generated SGR and
-  OSC 8 sequences. 
+  OSC 8 sequences.
+
+---
+
+## True streaming
+
+mdflow starts rendering while input is still arriving. It does not wait for
+EOF, keep the whole document in memory, or repeatedly reprocess everything
+received so far. That makes it a natural fit for live LLM output and other
+streaming Markdown sources.
+
+## Features
+
+- **CommonMark + GFM support** - tables, strikethrough, task lists, autolinks, footnotes, and admonitions, with known differences and streaming limitations documented below.
+- **Extras** - highlights.
+- **Tables** - box-drawing borders, alignment, automatic layout, and wrapping that preserves styling.
+- **Unicode-correct** - tested with CJK and emoji.
+- **Syntax highlighting** - simplified, generic highlighting using five styles, applied to code blocks in major programming languages.
+- **Inline HTML** - tags and entities styled for the terminal, with comments hidden.
+- **HTML blocks** - raw HTML scanned and styled, entities decoded, comments hidden, and Markdown inside is left literal.
+- **Clickable links** - links, autolinks, and emails are OSC 8 terminal hyperlinks.
+- **Color themes** - a default theme that respects the terminal's local color palette, a TERM_256 theme that uses a more stable 256-color palette, and a plain mode that disables ANSI styling.
+
+### CommonMark + GFM support, extensions, and limitations
+
+This section describes mdflow's current level of Markdown support and its known differences. It is not a claim of full conformance. CommonMark and GFM define expected HTML output in their examples. This section only addresses the parser, not mdflow's ANSI renderer or its terminal presentation.
+
+mdflow is tested against all 652 CommonMark specification examples and the GFM features listed above. The complete example set is included in the test suite. MD4C is fully CommonMark-compliant; mdflow's parser produces output identical to MD4C for all examples except those involving a limitation documented below.
+
+### Streaming limitations
+
+A proper live Markdown generator already avoids features that depend on future input. In static documents, the practical impact remains small.
+
+#### Could match with additional buffering, but mdflow chooses not to
+
+| Feature | mdflow behavior | Practical impact |
+| :------ | :-------------- | :--------------- |
+| Tight/loose lists | The first list item may retain tight. | No visible difference in the terminal. |
+| Multi-line Setext headings | Only the last line becomes a heading. | Affects only uncommon multi-line Setext headings. |
+
+#### Cannot be fully streamed
+
+| Feature | mdflow behavior | Practical impact |
+| :------ | :-------------- | :--------------- |
+| Reference links | Reference shown immediately without resolving definition, and definitions appear at the end. | Rare in live Markdown. Not fully functional in a terminal anyway. No content is lost. |
+| Footnotes | Footnote reference shown immediately without validating definition. | Rare in live Markdown. No content is lost. |
+
+### Other notes
+
+- **Syntax highlighting** - current highlighting is lightweight and generic, rather than language-specific.
+- **No pager or TUI** - mdflow renders; scrolling is left to `more` or `less -R`.
+- **Customization** - two built-in themes and one fixed configuration object are exposed; user-defined themes and additional feature flags are not exposed.
+
+More: [streaming Markdown renderer](docs/streaming-markdown-renderer.md) |
+[FAQ](docs/markdown-renderer-faq.md) |
+[LLM terminal recipes](docs/llm-markdown-terminal.md)
 
 ---
 
@@ -208,4 +231,4 @@ When analyzed feature by feature, some require only one line of lookahead; some 
 
 ### License
 
-MIT. See [LICENSE.md](LICENSE.md) and the license comments in the source file headers.
+MIT. See [LICENSE](LICENSE) and the license comments in the source file headers.

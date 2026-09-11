@@ -11,4 +11,4 @@ The test data in this directory comes from two sources:
 
 The remaining files (`stream-footnote.txt`, `stream-ref.txt`,
 `render-golden.txt`, the test harnesses) are original to mdflow and are
-covered by the project's MIT license (see LICENSE.md).
+covered by the project's MIT license (see ../LICENSE).

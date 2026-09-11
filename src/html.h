@@ -16,7 +16,7 @@
  * entity knowledge (entities are handed to the callback for decoding).
  *
  * This file is part of mdflow (https://github.com/cjccjj/mdflow).
- * Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE.md).
+ * Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE).
  */
 
 #ifndef MD_FLOW_HTML_H

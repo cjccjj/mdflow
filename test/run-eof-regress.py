@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE.md)
+# Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE)
 """Regression tests for content at end of input without a trailing newline.
 
 The streaming parser closes the last block at flush. A streamed paragraph

@@ -6,7 +6,7 @@
  * token state. No regex rules, no per-language modes, no ordering games.
  *
  * This file is part of mdflow (https://github.com/cjccjj/mdflow).
- * Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE.md).
+ * Copyright (c) 2026 Changjun Zhang  MIT License (see LICENSE).
  */
 
 #ifndef MD_FLOW_HIGHLIGHT_H
